@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=../schema/runbook.schema.json
+# Schema example for editors. Harbor and Pine is fictional.
+# `rehearse validate` checks this shape. It does not prove the paths exist.
+# Keep the schema link in a comment: `$schema` is not a field of the document.
+schemaVersion: "1.0"
+id: restore-archive-share
+title: Restore the archive file share
+summary: >
+  Example operating procedure for a fictional municipal archive. People follow
+  the steps. RunbookRehearsal checks the references and does not run them.
+execution: observe-only
+service: archive-file-share
+severity: high
+frameworks: [nis2, iso27001, it-grundschutz]
+reviewedBy: Example Reviewer
+owner:
+  name: Harbor and Pine Operations
+  email: ops@harborpine.example
+  team: operations
+review:
+  lastReviewed: "2026-10-01"
+  intervalDays: 90
+  maxAgeDays: 180
+contacts:
+  - name: Priya Nandakumar
+    role: Incident commander
+    email: priya.nandakumar@harborpine.example
+    phone: "+1-555-014-2281"
+    escalationOrder: 1
+preconditions:
+  - id: backup-named
+    description: The backup log names a restorable snapshot from the last 24 hours.
+    evidence: docs/backup-log.md
+steps:
+  - id: declare
+    title: Declare the incident
+    owner: Incident commander
+    description: Tell the incident channel the archive share is unavailable.
+    expectedOutcome: The commander acknowledges and names a note-taker.
+    durationMinutes: 10
+    prompts:
+      - Who is taking notes?
+    assets: []
+  - id: check-references
+    title: Check the server, the group, and the restore note
+    owner: Windows operator
+    description: Confirm the host, the admin group, the status page, the note, and the script reference. Do not restart the server.
+    expectedOutcome: Each reference is either healthy or written down as broken before any restore starts.
+    durationMinutes: 20
+    assets:
+      - id: archive-host
+        kind: host
+        target: fs01.ops.harborpine.example
+        port: 445
+        description: Archive file server
+      - id: archive-admins
+        kind: group
+        target: "CN=Archive-Admins,OU=Groups,DC=harborpine,DC=example"
+        directory: active_directory
+      - id: status-page
+        kind: url
+        target: https://status.harborpine.example/archive
+      - id: restore-note
+        kind: file
+        target: docs/restore-archive.md
+      - id: check-script
+        kind: script
+        target: scripts/Test-ArchiveShare.ps1
+        language: powershell

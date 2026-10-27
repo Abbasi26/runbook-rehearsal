@@ -1,0 +1,11 @@
+{
+  "yaml.schemas": {
+    "schema/runbook.schema.json": [
+      "runbooks/**/*.yaml",
+      "runbooks/**/*.yml",
+      "examples/**/*.yaml",
+      "examples/**/*.yml"
+    ]
+  },
+  "yaml.validate": true
+}

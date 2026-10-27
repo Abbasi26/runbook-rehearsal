@@ -1,0 +1,92 @@
+# yaml-language-server: $schema=../../../schema/runbook.schema.json
+# Fictional procedure for the Harbor and Pine Library Cooperative.
+# Deliberate rot: stale review, a bad escalation number, a closed SMB port,
+# a 404 status URL, a missing restore note, a renamed group, and scripts
+# that do not parse. rehearse does not execute the steps.
+schemaVersion: "1.0"
+id: restore-finance-share
+title: Restore the finance file share
+summary: >
+  Human procedure for when the finance department cannot open its file share.
+  The operator follows these steps. This tool only checks the references.
+execution: observe-only
+service: finance-file-share
+severity: high
+frameworks: [nis2, iso27001, it-grundschutz]
+reviewedBy: "No current reviewer — the last editor left no handover"
+owner:
+  name: Harbor and Pine Operations
+  email: ops@harborpine.example
+  team: operations
+review:
+  lastReviewed: "2025-06-01"
+  intervalDays: 90
+  maxAgeDays: 180
+contacts:
+  - name: Priya Nandakumar
+    role: Incident commander
+    email: priya.nandakumar@harborpine.example
+    phone: "+1-555-014-2281"
+    escalationOrder: 1
+  - name: Legacy pager desk
+    role: After-hours escalation
+    email: pager-desk
+    phone: "12345"
+    escalationOrder: 2
+preconditions:
+  - id: backup-fresh
+    description: A restorable backup of the finance share finished within the last 24 hours.
+    evidence: ../docs/backup-status.md
+steps:
+  - id: declare-incident
+    title: Declare the incident
+    owner: Incident commander
+    description: Post in the incident channel and page the commander. Do not restart the file server from this step.
+    expectedOutcome: The commander acknowledges within 15 minutes.
+    durationMinutes: 10
+    prompts:
+      - What time did the commander acknowledge?
+    assets: []
+  - id: check-file-server
+    title: Confirm the file server answers on SMB
+    owner: Windows operator
+    description: Check that FS01 answers on TCP 445. This step is a look, not a restart.
+    expectedOutcome: TCP 445 accepts a connection and the finance share is visible.
+    durationMinutes: 15
+    prompts:
+      - Did TCP 445 accept a connection?
+    assets:
+      - id: fs01
+        kind: host
+        target: fs01.ops.harborpine.example
+        port: 445
+        description: Finance file server, SMB
+      - id: share-admins
+        kind: group
+        target: "CN=Finance-Share-Admins,OU=Groups,DC=harborpine,DC=example"
+        directory: active_directory
+        description: Group allowed to restore the share
+      - id: status-page
+        kind: url
+        target: https://status.harborpine.example/finance
+      - id: bridge-notes
+        kind: file
+        target: ../docs/finance-bridge.md
+      - id: restore-doc
+        kind: file
+        target: ../docs/restore-finance-share.md
+      - id: test-share
+        kind: script
+        target: ../scripts/Test-FinanceShare.ps1
+        language: powershell
+      - id: invoke-share
+        kind: script
+        target: ../scripts/invoke-share.sh
+        language: bash
+  - id: restore-copy
+    title: Restore the share from the latest backup
+    owner: Windows operator
+    description: Copy the latest backup onto the finance share after the commander confirms the window. Stop if the backup note is missing.
+    expectedOutcome: Finance can open a known test file and the commander closes the incident.
+    durationMinutes: 60
+    assets: []

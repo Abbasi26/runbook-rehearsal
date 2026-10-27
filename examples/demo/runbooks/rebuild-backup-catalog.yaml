@@ -1,0 +1,74 @@
+# yaml-language-server: $schema=../../../schema/runbook.schema.json
+# Fictional procedure. The review is overdue and the catalog script does not parse.
+schemaVersion: "1.0"
+id: rebuild-backup-catalog
+title: Rebuild the backup catalog
+summary: >
+  Human procedure for rebuilding the backup catalog when the index no longer
+  matches the snapshot store. Scripts are parsed by the checker and not run.
+execution: observe-only
+service: backup-catalog
+severity: high
+frameworks: [nis2, iso27001, it-grundschutz]
+reviewedBy: Mara Adelayo
+owner:
+  name: Harbor and Pine Operations
+  email: ops@harborpine.example
+  team: operations
+review:
+  lastReviewed: "2026-06-01"
+  intervalDays: 90
+  maxAgeDays: 365
+contacts:
+  - name: Mara Adelayo
+    role: Backup owner
+    email: mara.adelayo@harborpine.example
+    phone: "+1-555-014-2290"
+    escalationOrder: 1
+preconditions:
+  - id: snapshot-named
+    description: The backup status note names the snapshot to rebuild from.
+    evidence: ../docs/backup-status.md
+steps:
+  - id: inspect-catalog
+    title: Read the current catalog and the status note
+    owner: Backup owner
+    description: Compare the catalog header with the snapshot named in the status note. Do not delete catalog files in this step.
+    expectedOutcome: The operator records the snapshot id and the catalog generation.
+    durationMinutes: 15
+    assets:
+      - id: backup01
+        kind: host
+        target: backup01.ops.harborpine.example
+        port: 22
+      - id: backup-operators
+        kind: group
+        target: Harborpine-Backup-Operators
+        directory: entra
+      - id: status-page
+        kind: url
+        target: https://status.harborpine.example/backups
+      - id: catalog-notes
+        kind: file
+        target: ../docs/backup-catalog.md
+      - id: handover-note
+        kind: file
+        target: ../docs/catalog-handover.md
+        description: Deleted handover. Planted rot.
+  - id: rebuild-index
+    title: Rebuild the index from the named snapshot
+    owner: Backup owner
+    description: Follow the catalog note. The referenced Python file is checked for syntax only.
+    expectedOutcome: A new catalog generation is written and a test lookup succeeds.
+    durationMinutes: 45
+    prompts:
+      - Which snapshot id was rebuilt?
+    assets:
+      - id: rebuild-script
+        kind: script
+        target: ../scripts/rebuild_catalog.py
+        language: python
+      - id: rehearsal-note
+        kind: script
+        target: ../scripts/Write-RehearsalNote.ps1
+        language: powershell

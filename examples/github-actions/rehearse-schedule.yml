@@ -1,0 +1,46 @@
+# Copy this file to .github/workflows/rehearse.yml in the repository that
+# holds your runbooks. It checks them on a schedule and uploads the report.
+# Live mode sends DNS, TCP, and HTTP probes to every host and URL those
+# runbooks name. Keep directory.provider unset unless you also map
+# REHEARSE_LDAP_PASSWORD or REHEARSE_GRAPH_TOKEN from a secret.
+# Do not put those secrets in this file.
+name: rehearse runbooks
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rehearse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install RunbookRehearsal
+        # v0.1 is not published on PyPI. In this repository, "." is the checkout.
+        # In a separate runbook repository, set RUNBOOKREHEARSAL_SPEC to a git URL
+        # or path you trust, for example git+https://github.com/you/runbookrehearsal.git@v0.1.0
+        run: python -m pip install "${RUNBOOKREHEARSAL_SPEC:-.}"
+        env:
+          RUNBOOKREHEARSAL_SPEC: ${{ vars.RUNBOOKREHEARSAL_SPEC }}
+
+      - name: Check runbooks
+        env:
+          REHEARSE_LDAP_PASSWORD: ${{ secrets.REHEARSE_LDAP_PASSWORD }}
+          REHEARSE_GRAPH_TOKEN: ${{ secrets.REHEARSE_GRAPH_TOKEN }}
+        run: rehearse check runbooks --config rehearse.yaml --output rehearse-out --fail-under 75
+
+      - name: Upload maturity report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runbook-maturity-report
+          path: rehearse-out/

@@ -1,0 +1,75 @@
+# yaml-language-server: $schema=../../../schema/runbook.schema.json
+# Fictional procedure. This one is maintained on the demo clock of 2026-10-21.
+schemaVersion: "1.0"
+id: linux-disk-incident
+title: Free disk space on the log server
+summary: >
+  Human procedure for when log01 is low on disk. The operator follows these
+  steps. The checker does not delete files and does not run the scripts.
+execution: observe-only
+service: log-shipping
+severity: high
+frameworks: [nis2, iso27001, it-grundschutz]
+reviewedBy: Jonah Ellison
+owner:
+  name: Harbor and Pine Operations
+  email: ops@harborpine.example
+  team: operations
+review:
+  lastReviewed: "2026-09-01"
+  intervalDays: 90
+  maxAgeDays: 180
+contacts:
+  - name: Jonah Ellison
+    role: Linux operator
+    email: jonah.ellison@harborpine.example
+    phone: "+1-555-014-2284"
+    escalationOrder: 1
+  - name: Priya Nandakumar
+    role: Incident commander
+    email: priya.nandakumar@harborpine.example
+    phone: "+1-555-014-2281"
+    escalationOrder: 2
+preconditions:
+  - id: maintenance-window
+    description: The log-shipping maintenance window is open, or the commander has accepted the risk of rotating logs now.
+    evidence: ../docs/linux-disk.md
+steps:
+  - id: confirm-disk
+    title: Confirm which filesystem is full
+    owner: Linux operator
+    description: Read disk usage on log01. Do not delete files in this step.
+    expectedOutcome: The operator names the filesystem and the largest directory.
+    durationMinutes: 10
+    prompts:
+      - Which filesystem is full?
+    assets:
+      - id: log01
+        kind: host
+        target: log01.ops.harborpine.example
+        port: 22
+      - id: linux-operators
+        kind: group
+        target: "CN=Linux-Operators,OU=Groups,DC=harborpine,DC=example"
+        directory: active_directory
+      - id: status-page
+        kind: url
+        target: https://status.harborpine.example/logs
+      - id: disk-notes
+        kind: file
+        target: ../docs/linux-disk.md
+      - id: check-disk
+        kind: script
+        target: ../scripts/check-disk.sh
+        language: bash
+      - id: verify-mount
+        kind: script
+        target: ../scripts/verify_mount.py
+        language: python
+  - id: rotate-logs
+    title: Rotate or move logs after naming the directory
+    owner: Linux operator
+    description: Rotate the named logs or move them to the archive volume. Record the path that was changed.
+    expectedOutcome: The filesystem is below the agreed threshold and shipping has resumed.
+    durationMinutes: 30
+    assets: []

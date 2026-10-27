@@ -1,0 +1,13 @@
+# Shared rules for all of Wasaf Abbasi's open-source projects
+- Code, comments and README in English. Add a short German summary section at the end of the README.
+- MIT license, copyright "Wasaf Abbasi". Include CONTRIBUTING.md, CHANGELOG.md and SECURITY.md.
+- Write everything from scratch. Use no employer or customer code or data, no customer names, no real tenant or host data, and no mention of any employer, government client or security clearance.
+- Put no secrets in the repo. Use only clearly fictional demo data.
+- Read-only by default. Any write or remediation action needs an explicit switch and a preview.
+- Data stays local; no telemetry.
+- Offline `demo` mode that shows the value in under 60 seconds without any real infrastructure.
+- Tests that run offline (Pester 5 for PowerShell, pytest for Python), plus a GitHub Actions workflow.
+- PowerShell: pwsh 7 cross-platform where possible, otherwise Windows PowerShell 5.1. Mind the file encodings: keep files ASCII-only, or save non-ASCII .ps1/.psm1 files as UTF-8 with BOM.
+- Don't claim features that aren't implemented. The README must match the code.
+- README: one-line pitch, the problem with a concrete example, quickstart (demo), real usage, required permissions, how to contribute, roadmap, and how this differs from existing tools (honest, with links).
+- Done when the demo runs end-to-end and all tests pass. In the final report, list the file tree, the features, anything unfinished, and add a screenshot or terminal capture of the demo as an artifact.

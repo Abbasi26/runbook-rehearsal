@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://runbookrehearsal.example/schema/runbook-1.0.json",
+  "title": "RunbookRehearsal runbook",
+  "description": "A human incident or operations procedure. execution is fixed to observe-only. RunbookRehearsal checks references in this document and does not run the steps as a job.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "title",
+    "summary",
+    "execution",
+    "owner",
+    "service",
+    "severity",
+    "review",
+    "contacts",
+    "preconditions",
+    "steps"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "1.0",
+      "description": "Document version understood by RunbookRehearsal 0.1."
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{2,63}$",
+      "description": "Stable id. Lowercase letters, digits, and hyphens."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 160
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 4000,
+      "description": "What this procedure is for, in plain language."
+    },
+    "execution": {
+      "const": "observe-only",
+      "description": "People follow these steps. The checker does not execute them."
+    },
+    "owner": {
+      "$ref": "#/$defs/owner"
+    },
+    "service": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "Service or business process this runbook operates or restores."
+    },
+    "severity": {
+      "enum": ["low", "medium", "high", "critical"]
+    },
+    "frameworks": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "enum": ["nis2", "iso27001", "it-grundschutz"]
+      },
+      "description": "Framework themes this procedure is written to support. A tag is not a control result."
+    },
+    "reviewedBy": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "description": "Person who last reviewed the text. Displayed in the report. Not a directory lookup."
+    },
+    "review": {
+      "$ref": "#/$defs/review"
+    },
+    "contacts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 30,
+      "items": {
+        "$ref": "#/$defs/contact"
+      }
+    },
+    "preconditions": {
+      "type": "array",
+      "maxItems": 40,
+      "items": {
+        "$ref": "#/$defs/precondition"
+      }
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 80,
+      "items": {
+        "$ref": "#/$defs/step"
+      }
+    }
+  },
+  "$defs": {
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "email"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "email": { "type": "string", "minLength": 3, "maxLength": 254 },
+        "team": { "type": "string", "minLength": 1, "maxLength": 120 }
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lastReviewed", "intervalDays", "maxAgeDays"],
+      "properties": {
+        "lastReviewed": {
+          "type": "string",
+          "format": "date",
+          "description": "Calendar date of the last human review, YYYY-MM-DD."
+        },
+        "intervalDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650,
+          "description": "The review is overdue after this many days."
+        },
+        "maxAgeDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3650,
+          "description": "Hard maximum age. Must be greater than or equal to intervalDays."
+        }
+      }
+    },
+    "contact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "role", "email"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "role": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "email": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 254,
+          "description": "Shape is checked later. A value can be well formed and still undeliverable."
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40,
+          "description": "Optional. When set, the check expects a leading + and 8 to 15 digits."
+        },
+        "escalationOrder": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Call order. The lowest number is first. Escalation contacts need a usable phone."
+        }
+      }
+    },
+    "precondition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description"],
+      "properties": {
+        "id": { "$ref": "#/$defs/localId" },
+        "description": { "type": "string", "minLength": 3, "maxLength": 2000 },
+        "evidence": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500,
+          "description": "Local file path relative to the runbook. Existence is checked. The file is not executed."
+        }
+      }
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "description", "expectedOutcome"],
+      "properties": {
+        "id": { "$ref": "#/$defs/localId" },
+        "title": { "type": "string", "minLength": 3, "maxLength": 160 },
+        "description": { "type": "string", "minLength": 3, "maxLength": 8000 },
+        "expectedOutcome": { "type": "string", "minLength": 3, "maxLength": 2000 },
+        "owner": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160,
+          "description": "Role or person who performs this step."
+        },
+        "durationMinutes": { "type": "integer", "minimum": 1, "maximum": 10080 },
+        "prompts": {
+          "type": "array",
+          "maxItems": 12,
+          "items": { "type": "string", "minLength": 3, "maxLength": 500 },
+          "description": "Questions rehearse tabletop asks for this step."
+        },
+        "assets": {
+          "type": "array",
+          "maxItems": 40,
+          "items": { "$ref": "#/$defs/asset" }
+        }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "kind", "target"],
+      "properties": {
+        "id": { "$ref": "#/$defs/localId" },
+        "kind": {
+          "enum": ["host", "url", "group", "file", "script"],
+          "description": "host and url are probed. group is a directory lookup when configured. file is a local existence check. script is parsed and not executed."
+        },
+        "target": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "TCP port. Only valid when kind is host."
+        },
+        "language": {
+          "enum": ["powershell", "bash", "python"],
+          "description": "Required when kind is script."
+        },
+        "directory": {
+          "enum": ["active_directory", "entra"],
+          "description": "Which directory the group name belongs to. Only valid when kind is group."
+        },
+        "description": { "type": "string", "minLength": 1, "maxLength": 500 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "kind": { "const": "host" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "target": {
+                "pattern": "^(localhost|((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])\\.){3}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9]?[0-9])|([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(\\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*)$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kind": { "const": "url" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "target": { "pattern": "^https?://[^\\s]+$" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kind": { "const": "script" } },
+            "required": ["kind"]
+          },
+          "then": { "required": ["language"] }
+        }
+      ]
+    },
+    "localId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{1,63}$"
+    }
+  }
+}

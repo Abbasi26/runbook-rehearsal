@@ -1,0 +1,38 @@
+# Offline fixtures for the fictional Harbor and Pine Library Cooperative.
+# rehearse demo forces mode offline. These fixtures are not a directory
+# and they are not evidence about any real network.
+mode: offline
+dueSoonDays: 14
+clock:
+  today: "2026-10-21"
+directory:
+  provider: stub
+  stub:
+    groups:
+      - "CN=Linux-Operators,OU=Groups,DC=harborpine,DC=example"
+      - "Harborpine-Backup-Operators"
+offline:
+  hosts:
+    fs01.ops.harborpine.example:
+      addresses: ["203.0.113.10"]
+      ports:
+        "445": closed
+    log01.ops.harborpine.example:
+      addresses: ["203.0.113.11"]
+      ports:
+        "22": open
+    backup01.ops.harborpine.example:
+      addresses: ["203.0.113.12"]
+      ports:
+        "22": open
+  urls:
+    https://status.harborpine.example/finance:
+      status: 404
+      reason: "not found"
+    https://wiki.harborpine.example/restore:
+      status: 404
+      reason: "not found"
+    https://status.harborpine.example/logs:
+      status: 200
+    https://status.harborpine.example/backups:
+      status: 200

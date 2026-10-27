@@ -1,0 +1,12 @@
+__pycache__/
+.pytest_cache/
+*.egg-info/
+.venv/
+dist/
+build/
+rehearse-demo-out/
+rehearse-out/
+rehearse-tabletop-out/
+.coverage
+htmlcov/
+*.pyc
