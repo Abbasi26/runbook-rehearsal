@@ -279,3 +279,16 @@ def _step_with_assets(assets: list[Asset]) -> Step:
         owner="Operator",
         assets=assets,
     )
+
+
+def test_phone_requires_ascii_digits():
+    for digit in ("\u0662", "\uff12"):
+        assert normalize_phone("+1" + digit * 7) is None
+
+    assert normalize_phone("+12345678") == "+12345678"
+    assert normalize_phone("+123456789012345") == "+123456789012345"
+    assert normalize_phone(" +1 (555) 014-2281 ") == "+15550142281"
+
+    for value in ("+1234567", "+1234567890123456", "+02345678"):
+        assert normalize_phone(value) is None
+

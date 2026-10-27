@@ -16,7 +16,7 @@ def valid_email(value: str) -> bool:
 
 def normalize_phone(value: str) -> str | None:
     compact = re.sub(r"[\s().-]", "", value.strip())
-    if re.fullmatch(r"\+[1-9]\d{7,14}", compact):
+    if re.fullmatch(r"\+[1-9][0-9]{7,14}", compact):
         return compact
     return None
 
@@ -118,3 +118,4 @@ class ContactCheck(Check):
             target=runbook.id,
             message=message,
         )
+
