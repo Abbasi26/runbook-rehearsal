@@ -287,6 +287,11 @@ def _assets(step):
 
 
 def _reject_unknown_ids(runbook: Runbook, answers: dict) -> None:
+    for section in ("steps", "preconditions"):
+        value = answers.get(section)
+        if value is not None and not isinstance(value, dict):
+            raise TabletopError(f"answers {section} must be a mapping")
+
     known_steps = {step.id for step in runbook.steps}
     known_pre = {item.id for item in runbook.preconditions}
     for key in (answers.get("steps") or {}):
@@ -361,3 +366,4 @@ def _ask_outcome(output, input_fn, prompt: str) -> str:
 
 def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+

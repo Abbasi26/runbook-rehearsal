@@ -2,12 +2,14 @@
 
 import json
 import socket
+import pytest
+import yaml
 from pathlib import Path
 
 from rehearse.cli import main
 from rehearse.demo import load_demo_config, run_demo
 from rehearse.runbook_load import load_runbook
-from rehearse.tabletop import load_answers, run_tabletop, write_tabletop
+from rehearse.tabletop import load_answers, run_tabletop, write_tabletop, TabletopError
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -218,3 +220,46 @@ def test_tabletop_refuses_a_non_interactive_terminal(monkeypatch):
         assert "answers" in str(exc)
     else:
         raise AssertionError("non-interactive tabletop should fail")
+
+
+@pytest.mark.parametrize("section", ["steps", "preconditions"])
+@pytest.mark.parametrize("value", [False, 0, "", [], True, 1, "invalid", ["invalid"]])
+def test_tabletop_rejects_non_mapping_sections(section, value, tmp_path, capsys):
+    runbook_path = ROOT / "examples" / "demo" / "runbooks" / "restore-finance-share.yaml"
+    runbook = load_runbook(runbook_path)
+    answers = {"participant": "Sam Ortega", section: value}
+    message = f"answers {section} must be a mapping"
+
+    with pytest.raises(TabletopError) as exc:
+        run_tabletop(runbook, answers=answers)
+    assert str(exc.value) == message
+
+    answers_path = tmp_path / "answers.yaml"
+    answers_path.write_text(yaml.safe_dump(answers), encoding="utf-8")
+    output = tmp_path / "tabletop"
+    assert main([
+        "tabletop", str(runbook_path),
+        "--answers", str(answers_path),
+        "--output", str(output),
+    ]) == 2
+    assert capsys.readouterr().err.strip() == message
+    assert not output.exists()
+
+
+@pytest.mark.parametrize("section", ["steps", "preconditions"])
+@pytest.mark.parametrize("value", [None, {}])
+def test_tabletop_accepts_empty_sections(section, value):
+    runbook = load_runbook(
+        ROOT / "examples" / "demo" / "runbooks" / "restore-finance-share.yaml"
+    )
+    for answers in (
+        {"participant": "Sam Ortega"},
+        {"participant": "Sam Ortega", section: value},
+    ):
+        report = run_tabletop(runbook, answers=answers)
+        assert all(item.outcome == "skipped" for item in report.steps)
+        assert all(item.outcome == "skipped" for item in report.preconditions)
+
+# Not checked: test execution; repository left unchanged.
+# Risk: malformed false or list sections previously treated as empty now fail.
+
