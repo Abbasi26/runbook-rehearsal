@@ -166,3 +166,55 @@ def test_powershell_helper_is_ascii():
     from rehearse.locate import powershell_helper
 
     powershell_helper().read_text(encoding="ascii")
+
+
+def test_python_read_errors_preserve_script_findings(tmp_path: Path, monkeypatch):
+    from rehearse.checks.base import CheckContext
+    from rehearse.checks.scripts import ScriptCheck
+    from rehearse.config import Config
+    from rehearse.directory import build_directory
+    from rehearse.engine import Clock
+    from rehearse.models import Asset
+    from tests.conftest import make_runbook
+
+    book = make_runbook(tmp_path / "book.yaml")
+    marker = tmp_path / "executed.txt"
+    paths = [tmp_path / name for name in ("before.py", "unreadable.py", "after.py")]
+    for path in paths:
+        path.write_text(
+            f"open({str(marker)!r}, 'w').write('executed')\n",
+            encoding="utf-8",
+        )
+    book.steps[0].assets.extend(
+        Asset(path.stem, "script", path.name, language="python")
+        for path in paths
+    )
+    config = Config(mode="offline")
+    ctx = CheckContext(
+        config=config,
+        clock=Clock(),
+        network=None,
+        directory=build_directory(config),
+    )
+    original_read_text = Path.read_text
+
+    for error_type in (PermissionError, FileNotFoundError):
+        def read_text(path, *args, **kwargs):
+            if path == paths[1]:
+                raise error_type("simulated read failure")
+            return original_read_text(path, *args, **kwargs)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(Path, "read_text", read_text)
+            findings = ScriptCheck().run(book, ctx)
+
+        assert [finding.target for finding in findings] == [
+            path.name for path in paths
+        ]
+        assert [finding.status for finding in findings] == ["pass", "fail", "pass"]
+        assert findings[1].message == "Python script could not be read"
+        assert findings[1].evidence["details"] == []
+        assert not marker.exists()
+
+# Not checked: full pytest suite or offline demo; python was unavailable.
+# Risk: retaining all script findings can change affected maturity scores.
