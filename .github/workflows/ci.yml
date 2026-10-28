@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
 
@@ -26,3 +26,10 @@ jobs:
 
       - name: Offline demo
         run: rehearse demo --output rehearse-demo-out
+
+      - name: Diff and init smoke test
+        run: |
+          rehearse check examples/demo/runbooks --config examples/demo/rehearse.yaml --output rehearse-check-out --baseline rehearse-demo-out/report.json --fail-on-regression
+          rehearse diff rehearse-demo-out/report.json rehearse-check-out/report.json --format markdown
+          rehearse init smoke-test-runbook --output smoke/smoke-test-runbook.yaml
+          rehearse validate smoke/smoke-test-runbook.yaml
