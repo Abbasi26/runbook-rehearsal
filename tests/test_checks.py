@@ -292,3 +292,29 @@ def test_phone_requires_ascii_digits():
     for value in ("+1234567", "+1234567890123456", "+02345678"):
         assert normalize_phone(value) is None
 
+
+def test_escalation_eligibility_uses_each_contacts_phone(tmp_path: Path):
+    from rehearse.models import Contact
+
+    valid_email = "ops@harborpine.example"
+    valid_phone = "+1-555-014-2281"
+    cases = [
+        (valid_email, valid_phone, 1, "pass"),
+        (valid_email, "12345", 1, "fail"),
+        (valid_email, None, 1, "fail"),
+        ("pager-desk", valid_phone, 1, "fail"),
+        (valid_email, valid_phone, None, "fail"),
+    ]
+    for email, phone, order, expected in cases:
+        book = make_runbook(
+            tmp_path / "contacts.yaml",
+            contacts=[
+                Contact("Observer", "Observer", valid_email, valid_phone, None),
+                Contact("On call", "Commander", email, phone, order),
+            ],
+        )
+        findings = ContactCheck().run(book, _ctx(tmp_path))
+        escalation = [item for item in findings if item.check == "escalation"]
+        assert len(escalation) == 1
+        assert escalation[0].status == expected
+

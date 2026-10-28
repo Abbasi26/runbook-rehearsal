@@ -74,7 +74,7 @@ class ContactCheck(Check):
             if (
                 contact.escalation_order is not None
                 and valid_email(contact.email)
-                and (phone_ok or (contact.phone and normalize_phone(contact.phone)))
+                and phone_ok
             ):
                 usable_escalation = True
         findings.append(self._escalation_finding(runbook, usable_escalation))
@@ -118,4 +118,5 @@ class ContactCheck(Check):
             target=runbook.id,
             message=message,
         )
+
 
