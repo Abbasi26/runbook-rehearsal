@@ -219,7 +219,7 @@ class GraphDirectory:
             headers={
                 "Authorization": f"Bearer {token}",
                 "Accept": "application/json",
-                "User-Agent": "RunbookRehearsal/0.1.0",
+                "User-Agent": "RunbookRehearsal/0.2.0",
             },
         )
         try:

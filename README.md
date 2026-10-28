@@ -244,7 +244,7 @@ This is a checker for the classic Windows and Linux operations runbook: the proc
 
 ## Status
 
-Version 0.1.0, early but usable. Python package with the CLI `rehearse`. MIT licensed. Every push runs the test suite in GitHub Actions (`.github/workflows/ci.yml`).
+Version 0.2.0, early but usable. Python package with the CLI `rehearse`. MIT licensed. Every push runs the test suite in GitHub Actions (`.github/workflows/ci.yml`).
 
 ## Install
 

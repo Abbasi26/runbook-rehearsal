@@ -172,7 +172,7 @@ def _request(url: str, timeout: float, use_proxy: bool, method: str) -> tuple[in
     request = urllib.request.Request(
         url,
         method=method,
-        headers={"User-Agent": "RunbookRehearsal/0.1.0"},
+        headers={"User-Agent": "RunbookRehearsal/0.2.0"},
     )
     handlers: list = [_HttpsOnlyRedirect()]
     if not use_proxy:
