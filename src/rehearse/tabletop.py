@@ -303,7 +303,9 @@ def _reject_unknown_ids(runbook: Runbook, answers: dict) -> None:
 
 
 def _precondition_from_answers(item, answers: dict) -> PreconditionRecord:
-    block = (answers.get("preconditions") or {}).get(item.id) or {}
+    block = (answers.get("preconditions") or {}).get(item.id)
+    if block is None:
+        block = {}
     if not isinstance(block, dict):
         raise TabletopError(f"precondition {item.id} answers must be a mapping")
     outcome = block.get("outcome", "skipped")
@@ -315,7 +317,9 @@ def _precondition_from_answers(item, answers: dict) -> PreconditionRecord:
 
 def _step_from_answers(step, answers: dict) -> StepRecord:
     provided = answers.get("steps") or {}
-    block = provided.get(step.id) or {}
+    block = provided.get(step.id)
+    if block is None:
+        block = {}
     if not isinstance(block, dict):
         raise TabletopError(f"step {step.id} answers must be a mapping")
     missing = step.id not in provided
@@ -366,4 +370,3 @@ def _ask_outcome(output, input_fn, prompt: str) -> str:
 
 def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
-

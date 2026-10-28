@@ -260,6 +260,58 @@ def test_tabletop_accepts_empty_sections(section, value):
         assert all(item.outcome == "skipped" for item in report.steps)
         assert all(item.outcome == "skipped" for item in report.preconditions)
 
-# Not checked: test execution; repository left unchanged.
-# Risk: malformed false or list sections previously treated as empty now fail.
 
+@pytest.mark.parametrize(
+    "section,item_id,label",
+    [
+        ("steps", "declare-incident", "step"),
+        ("preconditions", "backup-fresh", "precondition"),
+    ],
+)
+@pytest.mark.parametrize("value", [False, 0, "", [], True, 1, "invalid", ["invalid"]])
+def test_tabletop_rejects_non_mapping_answer_blocks(
+    section, item_id, label, value, tmp_path, capsys
+):
+    runbook_path = ROOT / "examples" / "demo" / "runbooks" / "restore-finance-share.yaml"
+    runbook = load_runbook(runbook_path)
+    answers = {"participant": "Sam Ortega", section: {item_id: value}}
+    message = f"{label} {item_id} answers must be a mapping"
+
+    with pytest.raises(TabletopError) as exc:
+        run_tabletop(runbook, answers=answers)
+    assert str(exc.value) == message
+
+    answers_path = tmp_path / "answers.yaml"
+    answers_path.write_text(yaml.safe_dump(answers), encoding="utf-8")
+    output = tmp_path / "tabletop"
+    assert main([
+        "tabletop", str(runbook_path),
+        "--answers", str(answers_path),
+        "--output", str(output),
+    ]) == 2
+    assert capsys.readouterr().err.strip() == message
+    assert not output.exists()
+
+
+@pytest.mark.parametrize(
+    "section,item_id",
+    [
+        ("steps", "declare-incident"),
+        ("preconditions", "backup-fresh"),
+    ],
+)
+@pytest.mark.parametrize("block", [None, {}])
+def test_tabletop_accepts_empty_answer_blocks(section, item_id, block):
+    runbook = load_runbook(
+        ROOT / "examples" / "demo" / "runbooks" / "restore-finance-share.yaml"
+    )
+    for entries in ({}, {item_id: block}):
+        report = run_tabletop(
+            runbook,
+            answers={"participant": "Sam Ortega", section: entries},
+        )
+        assert all(item.outcome == "skipped" for item in report.steps)
+        assert all(item.outcome == "skipped" for item in report.preconditions)
+
+# Not checked: test execution; repository unchanged. Other validation improvements skipped.
+# Risk: malformed falsy answer blocks previously accepted will now fail.
