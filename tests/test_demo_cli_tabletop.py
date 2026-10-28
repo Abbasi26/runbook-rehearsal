@@ -354,5 +354,69 @@ def test_tabletop_rejects_invalid_outcomes(
     assert capsys.readouterr().err.strip() == message
     assert not output.exists()
 
-# Not checked: test execution; repository unchanged. Broader validation skipped.
-# Risk: invalid collection outcomes now produce a handled error instead of TypeError.
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        True, False, -1, -0.5,
+        float("nan"), float("inf"), float("-inf"),
+        10**400, -(10**400),
+        "240", "", [], {},
+    ],
+)
+def test_tabletop_rejects_invalid_durations(value, tmp_path, capsys):
+    runbook_path = ROOT / "examples" / "demo" / "runbooks" / "restore-finance-share.yaml"
+    runbook = load_runbook(runbook_path)
+    answers = {
+        "participant": "Sam Ortega",
+        "steps": {"declare-incident": {"elapsedSeconds": value}},
+    }
+    message = (
+        "step declare-incident elapsedSeconds must be a finite non-negative number"
+    )
+
+    with pytest.raises(TabletopError) as exc:
+        run_tabletop(runbook, answers=answers)
+    assert str(exc.value) == message
+
+    answers_path = tmp_path / "answers.yaml"
+    answers_path.write_text(yaml.safe_dump(answers), encoding="utf-8")
+    output = tmp_path / "tabletop"
+    assert main([
+        "tabletop", str(runbook_path),
+        "--answers", str(answers_path),
+        "--output", str(output),
+    ]) == 2
+    assert capsys.readouterr().err.strip() == message
+    assert not output.exists()
+
+
+@pytest.mark.parametrize(
+    "block,expected",
+    [
+        ({}, None),
+        ({"elapsedSeconds": None}, None),
+        ({"elapsedSeconds": 0}, 0.0),
+        ({"elapsedSeconds": 240}, 240.0),
+        ({"elapsedSeconds": 0.25}, 0.25),
+    ],
+)
+def test_tabletop_preserves_valid_durations(block, expected):
+    runbook = load_runbook(
+        ROOT / "examples" / "demo" / "runbooks" / "restore-finance-share.yaml"
+    )
+    report = run_tabletop(
+        runbook,
+        answers={
+            "participant": "Sam Ortega",
+            "steps": {"declare-incident": block},
+        },
+    )
+    record = next(item for item in report.steps if item.step_id == "declare-incident")
+    assert record.recorded_seconds == expected
+    assert record.timing_source == (
+        "unspecified" if expected is None else "participant"
+    )
+
+# Skipped: implementation and test execution in this read-only review; broader answer validation.
+# Risk: previously accepted invalid durations will now fail with CLI exit code 2.

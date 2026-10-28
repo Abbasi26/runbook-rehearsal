@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -327,8 +328,16 @@ def _step_from_answers(step, answers: dict) -> StepRecord:
     if not isinstance(outcome, str) or outcome not in _OUTCOMES:
         raise TabletopError(f"step {step.id} outcome must be one of {sorted(_OUTCOMES)}")
     recorded = block.get("elapsedSeconds")
-    if recorded is not None and not isinstance(recorded, (int, float)):
-        raise TabletopError(f"step {step.id} elapsedSeconds must be a number")
+    if recorded is not None:
+        message = f"step {step.id} elapsedSeconds must be a finite non-negative number"
+        if isinstance(recorded, bool) or not isinstance(recorded, (int, float)):
+            raise TabletopError(message)
+        try:
+            recorded = float(recorded)
+        except OverflowError as exc:
+            raise TabletopError(message) from exc
+        if not math.isfinite(recorded) or recorded < 0:
+            raise TabletopError(message)
     prompts = []
     for entry in block.get("prompts") or []:
         if not isinstance(entry, dict) or "prompt" not in entry:
@@ -343,7 +352,7 @@ def _step_from_answers(step, answers: dict) -> StepRecord:
         outcome=str(outcome),
         notes="no answer supplied" if missing else str(block.get("notes") or ""),
         discussion_seconds=0.0,
-        recorded_seconds=None if recorded is None else float(recorded),
+        recorded_seconds=recorded,
         timing_source="participant" if recorded is not None else "unspecified",
         prompts=prompts,
     )
