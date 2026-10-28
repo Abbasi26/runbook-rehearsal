@@ -1,6 +1,5 @@
 # Restore report: runbook-rehearsal
 
-- Source transcript: `bc-b3fd8ef1-debf-5d3e-ab9c-c806be88b959.jsonl`
 - Method: replay of `search_replace` editFileResult unified diffs in order; shell-created extras filled from transcript commands
 - NVIDIA / OpenRouter generation: **not needed** (full tree reconstructable; all tests green)
 - Restored from transcript diffs: 58 paths via search_replace
