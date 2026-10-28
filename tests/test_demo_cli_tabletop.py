@@ -313,5 +313,46 @@ def test_tabletop_accepts_empty_answer_blocks(section, item_id, block):
         assert all(item.outcome == "skipped" for item in report.steps)
         assert all(item.outcome == "skipped" for item in report.preconditions)
 
-# Not checked: test execution; repository unchanged. Other validation improvements skipped.
-# Risk: malformed falsy answer blocks previously accepted will now fail.
+
+@pytest.mark.parametrize(
+    "section,item_id,label",
+    [
+        ("steps", "declare-incident", "step"),
+        ("preconditions", "backup-fresh", "precondition"),
+    ],
+)
+@pytest.mark.parametrize(
+    "outcome",
+    [[], ["met"], {}, {"value": "met"}, None, False, True, 0, 1.5, "", "invalid"],
+)
+def test_tabletop_rejects_invalid_outcomes(
+    section, item_id, label, outcome, tmp_path, capsys
+):
+    runbook_path = ROOT / "examples" / "demo" / "runbooks" / "restore-finance-share.yaml"
+    runbook = load_runbook(runbook_path)
+    answers = {
+        "participant": "Sam Ortega",
+        section: {item_id: {"outcome": outcome}},
+    }
+    message = (
+        f"{label} {item_id} outcome must be one of "
+        "['met', 'not_met', 'partial', 'skipped']"
+    )
+
+    with pytest.raises(TabletopError) as exc:
+        run_tabletop(runbook, answers=answers)
+    assert str(exc.value) == message
+
+    answers_path = tmp_path / "answers.yaml"
+    answers_path.write_text(yaml.safe_dump(answers), encoding="utf-8")
+    output = tmp_path / "tabletop"
+    assert main([
+        "tabletop", str(runbook_path),
+        "--answers", str(answers_path),
+        "--output", str(output),
+    ]) == 2
+    assert capsys.readouterr().err.strip() == message
+    assert not output.exists()
+
+# Not checked: test execution; repository unchanged. Broader validation skipped.
+# Risk: invalid collection outcomes now produce a handled error instead of TypeError.

@@ -309,7 +309,7 @@ def _precondition_from_answers(item, answers: dict) -> PreconditionRecord:
     if not isinstance(block, dict):
         raise TabletopError(f"precondition {item.id} answers must be a mapping")
     outcome = block.get("outcome", "skipped")
-    if outcome not in _OUTCOMES:
+    if not isinstance(outcome, str) or outcome not in _OUTCOMES:
         raise TabletopError(f"precondition {item.id} outcome must be one of {sorted(_OUTCOMES)}")
     notes = "no answer supplied" if item.id not in (answers.get("preconditions") or {}) else str(block.get("notes") or "")
     return PreconditionRecord(item.id, item.description, str(outcome), notes)
@@ -324,7 +324,7 @@ def _step_from_answers(step, answers: dict) -> StepRecord:
         raise TabletopError(f"step {step.id} answers must be a mapping")
     missing = step.id not in provided
     outcome = "skipped" if missing else block.get("outcome", "skipped")
-    if outcome not in _OUTCOMES:
+    if not isinstance(outcome, str) or outcome not in _OUTCOMES:
         raise TabletopError(f"step {step.id} outcome must be one of {sorted(_OUTCOMES)}")
     recorded = block.get("elapsedSeconds")
     if recorded is not None and not isinstance(recorded, (int, float)):
