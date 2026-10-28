@@ -1,5 +1,7 @@
 # RunbookRehearsal
 
+[![CI](https://github.com/Abbasi26/runbook-rehearsal/actions/workflows/ci.yml/badge.svg)](https://github.com/Abbasi26/runbook-rehearsal/actions/workflows/ci.yml)
+
 Dry-run checks that show when a written incident or operations runbook has gone stale.
 
 People still keep the 03:00 procedure in a YAML or wiki page: who to call, which host to look at, which script to read, which share to restore. Those references rot quietly. RunbookRehearsal reads the YAML, checks the references, and writes a maturity report you can attach to a NIS2, ISO/IEC 27001, or BSI IT-Grundschutz conversation. The score is evidence of freshness and reference health. A certification decision stays with the operator and the auditor.
@@ -219,6 +221,22 @@ This is a checker for the classic Windows and Linux operations runbook: the proc
 [lychee](https://github.com/lycheeverse/lychee) finds broken links in documents. [ansible-lint](https://ansible.readthedocs.io/projects/lint/) checks Ansible content. Use them for those jobs. They will not notice that the after-hours number in a restore procedure belongs to a pager that was retired.
 
 `rehearse tabletop` stores a local walkthrough. A commercial exercise platform or a cyber range is a different product: it simulates an incident for a team. This command asks the questions already written in the runbook and writes down the answers.
+
+## Status
+
+Version 0.1.0, early but usable. Python package with the CLI `rehearse`. MIT licensed. Every push runs the test suite in GitHub Actions (`.github/workflows/ci.yml`).
+
+## Install
+
+```sh
+pip install .
+```
+
+## Tests
+
+```sh
+python -m pytest
+```
 
 ## License
 
