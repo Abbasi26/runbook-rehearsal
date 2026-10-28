@@ -3,16 +3,26 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
 from rehearse import __version__
 from rehearse.config import ConfigError, load_config
 from rehearse.demo import load_demo_config
+from rehearse.diff import (
+    DiffError,
+    diff_reports,
+    load_report,
+    render_diff_json,
+    render_diff_markdown,
+    render_diff_text,
+)
 from rehearse.engine import check_paths
 from rehearse.locate import schema_path
 from rehearse.report import render_json, render_text, write_reports
 from rehearse.runbook_load import LoadError, discover_runbooks, load_runbook
+from rehearse.scaffold import ScaffoldError, render_scaffold, write_scaffold
 from rehearse.tabletop import (
     TabletopError,
     load_answers,
@@ -42,7 +52,29 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--fail-under", type=float, default=None, help="exit 1 when the overall score is below this")
     check.add_argument("--strict", action="store_true", help="exit 1 when any finding fails")
     check.add_argument("--stdout", choices=("text", "json"), default="text")
+    check.add_argument("--baseline", help="earlier report.json to compare with")
+    check.add_argument(
+        "--fail-on-regression",
+        action="store_true",
+        help="exit 1 when a finding newly fails or a band drops against --baseline",
+    )
     check.set_defaults(func=cmd_check)
+
+    diff = sub.add_parser("diff", help="compare two report.json files")
+    diff.add_argument("before", help="earlier report.json")
+    diff.add_argument("after", help="newer report.json")
+    diff.add_argument("--format", choices=("text", "markdown", "json"), default="text", dest="fmt")
+    diff.add_argument("--fail-on-regression", action="store_true", help="exit 1 on a new failure or a band drop")
+    diff.set_defaults(func=cmd_diff)
+
+    init = sub.add_parser("init", help="write a new runbook skeleton that passes validate")
+    init.add_argument("id", help="runbook id, for example restore-file-share")
+    init.add_argument("--title")
+    init.add_argument("--service")
+    init.add_argument("--severity", choices=("low", "medium", "high", "critical"), default="high")
+    init.add_argument("--output", help="file to write (default: <id>.yaml); '-' prints to stdout")
+    init.add_argument("--force", action="store_true", help="overwrite an existing file")
+    init.set_defaults(func=cmd_init)
 
     demo = sub.add_parser("demo", help="check the fictional Harbor and Pine fixtures offline")
     demo.add_argument("--output", default="rehearse-demo-out", help="report directory (default: rehearse-demo-out)")
@@ -70,7 +102,15 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         return args.func(args)
-    except (ConfigError, TabletopError, LoadError, NotADirectoryError, FileNotFoundError) as exc:
+    except (
+        ConfigError,
+        TabletopError,
+        LoadError,
+        DiffError,
+        ScaffoldError,
+        NotADirectoryError,
+        FileNotFoundError,
+    ) as exc:
         print(str(exc), file=sys.stderr)
         return 2
     except BrokenPipeError:
@@ -81,6 +121,10 @@ def cmd_check(args) -> int:
     if args.offline and args.live:
         print("pass only one of --offline and --live", file=sys.stderr)
         return 2
+    if args.fail_on_regression and not args.baseline:
+        print("--fail-on-regression needs --baseline", file=sys.stderr)
+        return 2
+    baseline = load_report(Path(args.baseline)) if args.baseline else None
     try:
         config = load_config(Path(args.config) if args.config else None)
     except ConfigError as exc:
@@ -103,11 +147,53 @@ def cmd_check(args) -> int:
         sys.stdout.write(render_json(report))
     else:
         sys.stdout.write(render_text(report))
+    comparison = None
+    if baseline is not None:
+        comparison = diff_reports(baseline, json.loads(render_json(report)))
+        stream = sys.stderr if args.stdout == "json" else sys.stdout
+        stream.write("\nCompared with " + args.baseline + "\n" + render_diff_text(comparison))
     if args.output:
         written = write_reports(report, Path(args.output))
+        if comparison is not None:
+            written["diff"] = Path(args.output) / "diff.md"
+            written["diff"].write_text(render_diff_markdown(comparison), encoding="utf-8")
         for path in written.values():
-            print(path)
-    return _exit_code(report, args, config)
+            print(path, file=sys.stderr if args.stdout == "json" else sys.stdout)
+    code = _exit_code(report, args, config)
+    if code == 0 and args.fail_on_regression and comparison is not None and comparison.regressed:
+        return 1
+    return code
+
+
+def cmd_diff(args) -> int:
+    comparison = diff_reports(load_report(Path(args.before)), load_report(Path(args.after)))
+    if args.fmt == "json":
+        sys.stdout.write(render_diff_json(comparison))
+    elif args.fmt == "markdown":
+        sys.stdout.write(render_diff_markdown(comparison))
+    else:
+        sys.stdout.write(render_diff_text(comparison))
+    if args.fail_on_regression and comparison.regressed:
+        return 1
+    return 0
+
+
+def cmd_init(args) -> int:
+    target = args.output or f"{args.id}.yaml"
+    text = render_scaffold(
+        args.id,
+        title=args.title,
+        service=args.service,
+        severity=args.severity,
+        file_name=Path(target).name if target != "-" else f"{args.id}.yaml",
+    )
+    if target == "-":
+        sys.stdout.write(text)
+        return 0
+    path = write_scaffold(Path(target), text, force=args.force)
+    load_runbook(path)
+    print(f"wrote {path}. Replace the placeholders, then run: rehearse check {path} --offline")
+    return 0
 
 
 def cmd_demo(args) -> int:

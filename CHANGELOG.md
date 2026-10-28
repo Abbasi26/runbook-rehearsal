@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased (0.2.0)
+
+- `rehearse diff BEFORE AFTER` compares two `report.json` files: overall and per-runbook score deltas, band changes, new failures, fixed findings, other status changes, and added or removed runbooks. `--format text|markdown|json`. `--fail-on-regression` exits 1 on a new failure or a band drop. Freshness findings are matched per runbook, so a new review date counts as a fix and not as a new finding.
+- `rehearse check --baseline report.json` prints the comparison, writes `diff.md` into `--output`, and `--fail-on-regression` gates on what got worse. Without `--baseline` that flag is a usage error (exit 2).
+- `rehearse init ID` writes a runbook skeleton that passes `rehearse validate` (`--title`, `--service`, `--severity`, `--output -` for stdout, `--force`). Review interval 90/180 days for high and critical, 180/365 otherwise.
+- `examples/github-actions/rehearse-pull-request.yml`: base-versus-PR comparison in the job summary, offline.
+- ROADMAP.md with good first issues, issue forms, and a pull request template. CI runs Python 3.11 to 3.13 and a diff smoke test.
+
 ## 0.1.0 — 2026-10-21
 
 First public slice.

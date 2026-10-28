@@ -1,0 +1,62 @@
+# Copy this file to .github/workflows/rehearse-pr.yml in the repository that
+# holds your runbooks. On a pull request it checks the runbooks on the base
+# branch and on the pull request, writes the difference to the job summary,
+# and fails when a check newly fails or a runbook drops a band.
+# It uses `--offline` so a pull request from a fork sends no probes. Remove
+# that flag only if your config and your network owners allow live probes.
+name: rehearse pull request
+
+on:
+  pull_request:
+    paths:
+      - "runbooks/**"
+      - "rehearse.yaml"
+
+permissions:
+  contents: read
+
+jobs:
+  rehearse-diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install RunbookRehearsal
+        # Set RUNBOOKREHEARSAL_SPEC to a git URL or path you trust, for example
+        # git+https://github.com/you/runbookrehearsal.git@v0.2.0
+        run: python -m pip install "${RUNBOOKREHEARSAL_SPEC:-.}"
+        env:
+          RUNBOOKREHEARSAL_SPEC: ${{ vars.RUNBOOKREHEARSAL_SPEC }}
+
+      - name: Baseline from the base branch
+        run: |
+          git worktree add ../base "origin/${{ github.base_ref }}"
+          (cd ../base && rehearse check runbooks --config rehearse.yaml --offline --output ../baseline-out) || true
+
+      - name: Check the pull request against the baseline
+        run: |
+          if [ -f ../baseline-out/report.json ]; then
+            rehearse check runbooks --config rehearse.yaml --offline --output rehearse-out \
+              --baseline ../baseline-out/report.json --fail-on-regression
+          else
+            echo "No baseline on the base branch; checking without a comparison."
+            rehearse check runbooks --config rehearse.yaml --offline --output rehearse-out
+          fi
+
+      - name: Job summary
+        if: always()
+        run: |
+          if [ -f rehearse-out/diff.md ]; then cat rehearse-out/diff.md >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runbook-rehearsal-pr
+          path: rehearse-out/

@@ -86,6 +86,25 @@ Exit codes for `check`:
 
 `rehearse schema` prints the JSON Schema. `rehearse validate` checks shape only.
 
+### Start a new runbook
+
+```bash
+rehearse init restore-erp --title "Restore the ERP database" --output runbooks/restore-erp.yaml
+rehearse check runbooks/restore-erp.yaml --offline
+```
+
+`init` writes a skeleton that already passes `validate`: an owner, a contact, a precondition, two steps, and commented examples for each asset kind. Replace the placeholders. `--output -` prints it instead, and `--force` overwrites.
+
+### What changed since the last run
+
+```bash
+rehearse diff last-week/report.json rehearse-out/report.json
+rehearse diff last-week/report.json rehearse-out/report.json --format markdown > diff.md
+rehearse check runbooks --config rehearse.yaml --output rehearse-out --baseline last-week/report.json --fail-on-regression
+```
+
+The diff lists score and band changes per runbook, findings that newly fail, findings that were fixed, and runbooks that were added or removed. A freshness finding is matched per runbook, so a new `lastReviewed` date shows up as fixed. `--fail-on-regression` exits 1 only when something got worse, which lets a team adopt the tool on old procedures and still stop new rot. With `--output`, `check --baseline` also writes `diff.md`. `examples/github-actions/rehearse-pull-request.yml` runs the base branch and the pull request offline and puts that Markdown in the job summary.
+
 ### What the document holds
 
 `schema/runbook.schema.json` (draft 2020-12) requires `schemaVersion: "1.0"`, an id, title, summary, `execution: observe-only`, an owner, a service, a severity, a review block (`lastReviewed`, `intervalDays`, `maxAgeDays`), at least one contact, a precondition list, and at least one step. Steps have a description and an expected outcome. Assets are `host`, `url`, `group`, `file`, or `script`. Optional framework tags are `nis2`, `iso27001`, and `it-grundschutz`.
@@ -172,7 +191,7 @@ The record is separate from the maturity score. It is what people said, not a te
 
 ### Scheduled check
 
-`.github/workflows/ci.yml` runs the test suite and `rehearse demo` on Python 3.11 and 3.12. `examples/github-actions/rehearse-schedule.yml` is a weekly workflow you copy into the repository that holds your procedures. v0.1 is not on PyPI. The example installs the local checkout, or the git URL you set in the `RUNBOOKREHEARSAL_SPEC` repository variable. Map `REHEARSE_LDAP_PASSWORD` and `REHEARSE_GRAPH_TOKEN` from secrets only if the config actually selects `ldap` or `graph`. An empty secret is ignored.
+`.github/workflows/ci.yml` runs the test suite, `rehearse demo`, and a diff smoke test on Python 3.11, 3.12, and 3.13. `examples/github-actions/rehearse-schedule.yml` is a weekly workflow you copy into the repository that holds your procedures. v0.1 is not on PyPI. The example installs the local checkout, or the git URL you set in the `RUNBOOKREHEARSAL_SPEC` repository variable. Map `REHEARSE_LDAP_PASSWORD` and `REHEARSE_GRAPH_TOKEN` from secrets only if the config actually selects `ldap` or `graph`. An empty secret is ignored.
 
 ### Reading the report as evidence
 
@@ -199,11 +218,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Short version: English in code and docs,
 
 ## Roadmap
 
-Not in v0.1:
+[ROADMAP.md](ROADMAP.md) has the plan and a list of good first issues.
+
+Not yet implemented:
 
 - Third-party check plugins via entry points. The check classes in `rehearse.checks` are the extension point inside the tree.
 - Authenticated HTTP, IPv6 host targets, and a content root that refuses paths outside a directory.
-- A diff against the previous JSON report for pull-request comments.
 - A CI job that runs LDAP against a local directory container. The client is covered with a stand-in connection.
 - Windows PowerShell 5.1. The parser we call is `pwsh` 7.
 - Phone delivery checks and mailbox checks. Format is as far as v0.1 goes.
