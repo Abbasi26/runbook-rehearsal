@@ -13,7 +13,7 @@ from rehearse.checks.reachability import ReachabilityCheck
 from rehearse.config import Config, FixtureBook
 from rehearse.directory import NoneDirectory, StubDirectory, build_directory
 from rehearse.engine import Clock
-from rehearse.models import Asset, Step
+from rehearse.models import Asset, Owner, Step
 from tests.conftest import make_runbook
 
 TODAY = date(2026, 10, 21)
@@ -212,6 +212,48 @@ def test_completeness_requires_preconditions_when_severe(tmp_path: Path):
     low = make_runbook(tmp_path / "low.yaml", preconditions=[], severity="low")
     low_findings = CompletenessCheck().run(low, _ctx(tmp_path))
     assert any(item.status == "warn" and "precondition" in item.message for item in low_findings)
+
+
+def test_completeness_flags_draft_placeholders(tmp_path: Path):
+    from rehearse.models import Asset, Contact, Step
+
+    book = make_runbook(
+        tmp_path / "draft.yaml",
+        owner=Owner("Operations (replace)", "ops@example.org", "operations"),
+        contacts=[
+            Contact("Incident commander (replace)", "Commander", "commander@example.org", "+1-555-010-0000", 1),
+        ],
+        steps=[
+            Step(
+                id="look",
+                title="Look first",
+                description="Confirm the status page at https://status.example.org/app.",
+                expected_outcome="The operator records the state they saw.",
+                owner="Operator",
+                assets=[Asset("status", "url", "https://status.example.org/app")],
+            )
+        ],
+    )
+    findings = CompletenessCheck().run(book, _ctx(tmp_path))
+    placeholder = [item for item in findings if item.check == "completeness" and item.status == "warn"]
+    assert len(placeholder) == 1
+    message = placeholder[0].message
+    assert "(replace)" in message
+    assert "example.org" in message
+    assert "555" in message
+
+
+def test_completeness_passes_when_no_placeholders(tmp_path: Path):
+    book = make_runbook(tmp_path / "clean.yaml")
+    findings = CompletenessCheck().run(book, _ctx(tmp_path))
+    placeholder = [item for item in findings if item.check == "completeness" and item.status == "warn" and "placeholder" in item.message]
+    assert placeholder == []
+    assert any(
+        item.check == "completeness"
+        and item.status == "pass"
+        and "no draft placeholders" in item.message
+        for item in findings
+    )
 
 
 def test_offline_host_and_url_fixtures(tmp_path: Path):
