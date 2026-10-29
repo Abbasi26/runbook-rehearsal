@@ -338,8 +338,11 @@ def _step_from_answers(step, answers: dict) -> StepRecord:
             raise TabletopError(message) from exc
         if not math.isfinite(recorded) or recorded < 0:
             raise TabletopError(message)
+    entries = block.get("prompts")
+    if entries is not None and not isinstance(entries, list):
+        raise TabletopError(f"step {step.id} prompts must be a list")
     prompts = []
-    for entry in block.get("prompts") or []:
+    for entry in entries or []:
         if not isinstance(entry, dict) or "prompt" not in entry:
             raise TabletopError(f"step {step.id} prompts need prompt and response")
         prompts.append(PromptRecord(str(entry["prompt"]), str(entry.get("response") or "")))
@@ -379,3 +382,4 @@ def _ask_outcome(output, input_fn, prompt: str) -> str:
 
 def _now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
