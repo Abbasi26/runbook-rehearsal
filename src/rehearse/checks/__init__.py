@@ -2,6 +2,7 @@
 
 from rehearse.checks.completeness import CompletenessCheck
 from rehearse.checks.contacts import ContactCheck
+from rehearse.checks.placeholders import PlaceholderCheck
 from rehearse.checks.files import FileCheck
 from rehearse.checks.freshness import FreshnessCheck
 from rehearse.checks.groups import GroupCheck
@@ -12,6 +13,7 @@ __all__ = [
     "CompletenessCheck",
     "ContactCheck",
     "FileCheck",
+    "PlaceholderCheck",
     "FreshnessCheck",
     "GroupCheck",
     "ReachabilityCheck",
@@ -29,4 +31,5 @@ def default_checks():
         ScriptCheck(),
         GroupCheck(),
         CompletenessCheck(),
+        PlaceholderCheck(),
     ]

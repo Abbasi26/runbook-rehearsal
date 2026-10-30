@@ -124,6 +124,7 @@ All of them are non-destructive. v0.1 has no apply command and no remediation fl
 | Script syntax | `python` via `compile()`, `bash` via `bash -n`, PowerShell via `pwsh` and `Parser.ParseFile`. |
 | Groups | Looks up a group only when a directory provider is configured. |
 | Completeness | A high or critical procedure needs a precondition. Each step needs an owner. |
+| Placeholders | Flags `(replace)`, `example.org`, and `555-010` values left in a runbook by `rehearse init`. |
 
 Skip findings are listed and left out of the score. A missing `pwsh` or `bash` is a warning, not a pass.
 

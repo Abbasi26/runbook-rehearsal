@@ -293,6 +293,47 @@ def test_phone_requires_ascii_digits():
         assert normalize_phone(value) is None
 
 
+def test_placeholder_check_flags_init_leftovers(tmp_path: Path):
+    from rehearse.checks.placeholders import PlaceholderCheck
+    from rehearse.models import Contact
+
+    book = make_runbook(
+        tmp_path / "skeleton.yaml",
+        contacts=[
+            Contact("Incident commander (replace)", "Commander", "commander@example.org", "+1-555-010-0000", 1),
+        ],
+        steps=[
+            _step_with_assets([Asset("status-page", "url", "https://status.example.org/app")])
+        ],
+    )
+    findings = PlaceholderCheck().run(book, _ctx(tmp_path))
+    commander = [item for item in findings if item.target == "Incident commander (replace)"]
+    assert len(commander) == 3
+    assert all(item.status == "warn" for item in commander)
+    messages = " ".join(item.message for item in commander)
+    assert "(replace)" in messages
+    assert "example.org" in messages
+    assert any("phone" in item.message for item in commander)
+    assert any(item.target == "status-page" and item.status == "warn" for item in findings)
+
+
+def test_placeholder_check_passes_on_real_values(tmp_path: Path):
+    from rehearse.checks.placeholders import PlaceholderCheck
+    from rehearse.models import Contact
+
+    book = make_runbook(
+        tmp_path / "real.yaml",
+        contacts=[
+            Contact("Priya Nandakumar", "Commander", "priya.nandakumar@harborpine.example", "+1-555-014-2281", 1),
+        ],
+        steps=[_step_with_assets([Asset("fs01", "host", "fs01.ops.harborpine.example", port=445)])],
+    )
+    findings = PlaceholderCheck().run(book, _ctx(tmp_path))
+    assert len(findings) == 1
+    assert findings[0].status == "pass"
+    assert "placeholder" in findings[0].message
+
+
 def test_escalation_eligibility_uses_each_contacts_phone(tmp_path: Path):
     from rehearse.models import Contact
 
