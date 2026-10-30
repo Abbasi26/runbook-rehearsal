@@ -1,0 +1,7 @@
+# examples/demo/scripts holds fixtures that are parsed, not run; one is incomplete on purpose.
+extend-exclude = ["examples/demo/scripts"]
+
+# Baseline lint gate: syntax errors and pyflakes (ruff's default rule set).
+# Stricter rules can be added here once the code is clean for them.
+[lint]
+select = ["E4", "E7", "E9", "F"]
