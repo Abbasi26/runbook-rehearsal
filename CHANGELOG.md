@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `rehearse check` now runs a `placeholders` finding that flags `(replace)`, `example.org`, and `555-010` values left in a runbook by `rehearse init`. It is a warning per contact or asset, so a copied skeleton that only got its title edited now shows up in the report instead of silently scoring as healthy.
+
 ## 0.2.0 — 2026-10-28
 
 - `rehearse diff BEFORE AFTER` compares two `report.json` files: overall and per-runbook score deltas, band changes, new failures, fixed findings, other status changes, and added or removed runbooks. `--format text|markdown|json`. `--fail-on-regression` exits 1 on a new failure or a band drop. Freshness findings are matched per runbook, so a new review date counts as a fix and not as a new finding.
