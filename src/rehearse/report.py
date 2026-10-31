@@ -95,7 +95,7 @@ def render_text(report: Report) -> str:
 
 def render_markdown(report: Report) -> str:
     lines: list[str] = []
-    lines.append(f"# Runbook maturity report")
+    lines.append("# Runbook maturity report")
     lines.append("")
     lines.append(f"RunbookRehearsal {report.version} · {report.generated_at}")
     lines.append("")
