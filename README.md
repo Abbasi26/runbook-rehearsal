@@ -1,3 +1,17 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo-light.svg">
+    <img src="docs/assets/logo-light.svg" alt="runbook-rehearsal" height="64">
+  </picture>
+</p>
+
+<p align="center">Catches dead links, missing files and broken scripts in runbooks.</p>
+
+<p align="center">
+  <img src="docs/assets/readme-hero.png" width="800" alt="Terminal output of rehearse demo: three fictional runbooks scored Maintained, Drifting and Stale, followed by the failed checks such as overdue reviews, HTTP 404 links, missing files and script syntax errors.">
+</p>
+
 # RunbookRehearsal
 
 [![CI](https://github.com/Abbasi26/runbook-rehearsal/actions/workflows/ci.yml/badge.svg)](https://github.com/Abbasi26/runbook-rehearsal/actions/workflows/ci.yml)
