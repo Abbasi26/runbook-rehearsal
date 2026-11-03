@@ -109,6 +109,15 @@ rehearse check runbooks/restore-erp.yaml --offline
 
 `init` writes a skeleton that already passes `validate`: an owner, a contact, a precondition, two steps, and commented examples for each asset kind. Replace the placeholders. `--output -` prints it instead, and `--force` overwrites.
 
+To reuse owner and contacts from an existing runbook:
+
+```bash
+rehearse init restore-erp --from runbooks/restore-archive-share.yaml --output runbooks/restore-erp.yaml
+rehearse check runbooks/restore-erp.yaml --offline
+```
+
+Missing or invalid `--from` files produce a clear error and exit non-zero; nothing is written.
+
 ### What changed since the last run
 
 ```bash
