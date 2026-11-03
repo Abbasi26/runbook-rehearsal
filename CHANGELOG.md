@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `rehearse init --from <runbook.yaml>` copies owner and contacts from an existing runbook into the new skeleton. Missing or invalid source files produce a clear error and exit non-zero; nothing is written.
+
 ## 0.2.0 — 2026-10-28
 
 - `rehearse diff BEFORE AFTER` compares two `report.json` files: overall and per-runbook score deltas, band changes, new failures, fixed findings, other status changes, and added or removed runbooks. `--format text|markdown|json`. `--fail-on-regression` exits 1 on a new failure or a band drop. Freshness findings are matched per runbook, so a new review date counts as a fix and not as a new finding.

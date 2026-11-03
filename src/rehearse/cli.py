@@ -22,7 +22,7 @@ from rehearse.engine import check_paths
 from rehearse.locate import schema_path
 from rehearse.report import render_json, render_text, write_reports
 from rehearse.runbook_load import LoadError, discover_runbooks, load_runbook
-from rehearse.scaffold import ScaffoldError, render_scaffold, write_scaffold
+from rehearse.scaffold import ScaffoldError, ScaffoldOwner, render_scaffold, write_scaffold
 from rehearse.tabletop import (
     TabletopError,
     load_answers,
@@ -74,6 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--severity", choices=("low", "medium", "high", "critical"), default="high")
     init.add_argument("--output", help="file to write (default: <id>.yaml); '-' prints to stdout")
     init.add_argument("--force", action="store_true", help="overwrite an existing file")
+    init.add_argument("--from", dest="from_file", help="copy owner and contacts from an existing runbook file")
     init.set_defaults(func=cmd_init)
 
     demo = sub.add_parser("demo", help="check the fictional Harbor and Pine fixtures offline")
@@ -180,12 +181,34 @@ def cmd_diff(args) -> int:
 
 def cmd_init(args) -> int:
     target = args.output or f"{args.id}.yaml"
+
+    from_owner = None
+    from_contacts = None
+    if args.from_file:
+        from_path = Path(args.from_file)
+        if not from_path.is_file():
+            print(f"source runbook not found: {from_path}", file=sys.stderr)
+            return 2
+        try:
+            source_runbook = load_runbook(from_path)
+        except LoadError as exc:
+            print(f"invalid source runbook: {exc}", file=sys.stderr)
+            return 2
+        from_owner = ScaffoldOwner(
+            name=source_runbook.owner.name,
+            email=source_runbook.owner.email,
+            team=source_runbook.owner.team,
+        )
+        from_contacts = list(source_runbook.contacts)
+
     text = render_scaffold(
         args.id,
         title=args.title,
         service=args.service,
         severity=args.severity,
         file_name=Path(target).name if target != "-" else f"{args.id}.yaml",
+        owner=from_owner,
+        contacts=from_contacts,
     )
     if target == "-":
         sys.stdout.write(text)

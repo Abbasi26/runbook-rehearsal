@@ -12,7 +12,7 @@ import pytest
 from rehearse.cli import main
 from rehearse.diff import DiffError, diff_reports, load_report, render_diff_markdown
 from rehearse.runbook_load import load_runbook
-from rehearse.scaffold import ScaffoldError, render_scaffold
+from rehearse.scaffold import ScaffoldError, render_scaffold, ScaffoldOwner
 
 ROOT = Path(__file__).resolve().parents[1]
 DEMO_RUNBOOKS = ROOT / "examples" / "demo" / "runbooks"
@@ -151,3 +151,81 @@ def test_init_rejects_bad_ids_and_prints_to_stdout(capsys):
     assert 'lastReviewed: "2026-10-01"' in text
     assert main(["init", "db-restore", "--output", "-"]) == 0
     assert "id: db-restore" in capsys.readouterr().out
+
+
+def test_init_from_copies_owner_and_contacts(tmp_path, capsys):
+    source = Path("examples/runbook.example.yaml")
+    target = tmp_path / "new-runbook.yaml"
+    assert main(["init", "new-runbook", "--from", str(source), "--output", str(target)]) == 0
+    runbook = load_runbook(target)
+    assert runbook.id == "new-runbook"
+    assert runbook.owner.name == "Harbor and Pine Operations"
+    assert runbook.owner.email == "ops@harborpine.example"
+    assert runbook.owner.team == "operations"
+    assert len(runbook.contacts) == 1
+    assert runbook.contacts[0].name == "Priya Nandakumar"
+    assert runbook.contacts[0].role == "Incident commander"
+    assert runbook.contacts[0].email == "priya.nandakumar@harborpine.example"
+    assert runbook.contacts[0].phone == "+1-555-014-2281"
+    assert runbook.contacts[0].escalation_order == 1
+    assert main(["validate", str(target)]) == 0
+
+
+def test_init_from_missing_file_exits_with_error(tmp_path, capsys):
+    target = tmp_path / "new-runbook.yaml"
+    code = main(["init", "new-runbook", "--from", "/nonexistent/path.yaml", "--output", str(target)])
+    assert code == 2
+    assert "not found" in capsys.readouterr().err
+    assert not target.exists()
+
+
+def test_init_from_invalid_yaml_exits_with_error(tmp_path, capsys):
+    bad = tmp_path / "bad.yaml"
+    bad.write_text("invalid: [", encoding="utf-8")
+    target = tmp_path / "new-runbook.yaml"
+    code = main(["init", "new-runbook", "--from", str(bad), "--output", str(target)])
+    assert code == 2
+    assert "invalid source runbook" in capsys.readouterr().err
+    assert not target.exists()
+
+
+def test_init_from_preserves_other_scaffold_defaults(tmp_path):
+    source = Path("examples/runbook.example.yaml")
+    target = tmp_path / "new-runbook.yaml"
+    assert main(["init", "new-runbook", "--from", str(source), "--output", str(target)]) == 0
+    runbook = load_runbook(target)
+    assert runbook.id == "new-runbook"
+    assert runbook.title == "New runbook"
+    assert runbook.execution == "observe-only"
+    assert runbook.service == "new-runbook"
+    assert runbook.severity == "high"
+    assert runbook.review.interval_days == 90
+    assert runbook.review.max_age_days == 180
+    assert len(runbook.preconditions) == 1
+    assert runbook.preconditions[0].id == "backup-known"
+    assert len(runbook.steps) == 2
+
+
+def test_render_scaffold_with_owner_and_contacts():
+    owner = ScaffoldOwner(name="Test Team", email="test@example.org", team="test-team")
+    contacts = [
+        type("Contact", (), {"name": "Alice", "role": "Lead", "email": "alice@example.org", "phone": "+1-555-010-0001", "escalation_order": 1})(),
+        type("Contact", (), {"name": "Bob", "role": "Backup", "email": "bob@example.org", "phone": None, "escalation_order": 2})(),
+    ]
+    text = render_scaffold(
+        "test-id",
+        owner=owner,
+        contacts=contacts,
+        today=date(2026, 1, 15),
+    )
+    assert "name: Test Team" in text
+    assert 'email: "test@example.org"' in text
+    assert "team: test-team" in text
+    assert "name: Alice" in text
+    assert "role: Lead" in text
+    assert 'email: "alice@example.org"' in text
+    assert 'phone: "+1-555-010-0001"' in text
+    assert "escalationOrder: 1" in text
+    assert "name: Bob" in text
+    assert "phone" not in text.split("name: Bob")[1].split("\n  -")[0]
+    assert "escalationOrder: 2" in text
