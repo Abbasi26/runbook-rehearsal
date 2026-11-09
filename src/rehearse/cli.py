@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from rehearse import __version__
-from rehearse.config import ConfigError, load_config
+from rehearse.config import ConfigError, load_config, resolve_root
 from rehearse.demo import load_demo_config
 from rehearse.diff import (
     DiffError,
@@ -46,6 +46,7 @@ def build_parser() -> argparse.ArgumentParser:
     check = sub.add_parser("check", help="check a runbook file or directory")
     check.add_argument("path", help="runbook file or directory")
     check.add_argument("--config", help="rehearse.yaml")
+    check.add_argument("--root", help="confine local file and script references to DIR")
     check.add_argument("--offline", action="store_true", help="use fixtures and do not probe the network")
     check.add_argument("--live", action="store_true", help="probe DNS, TCP, and HTTP even if config says offline")
     check.add_argument("--output", help="directory for HTML, Markdown, and JSON reports")
@@ -134,6 +135,8 @@ def cmd_check(args) -> int:
         config.mode = "offline"
     if args.live:
         config.mode = "live"
+    if args.root is not None:
+        config.root = resolve_root(args.root, Path.cwd(), "--root")
     try:
         paths = discover_runbooks(Path(args.path))
     except FileNotFoundError as exc:

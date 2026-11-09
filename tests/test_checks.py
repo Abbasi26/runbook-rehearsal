@@ -1,5 +1,6 @@
 """Check behaviour that does not depend on the demo fixtures."""
 
+import json
 from datetime import date
 from pathlib import Path
 
@@ -7,13 +8,15 @@ from rehearse.checks.base import CheckContext
 from rehearse.checks.completeness import CompletenessCheck
 from rehearse.checks.contacts import ContactCheck, normalize_phone, valid_email
 from rehearse.checks.files import FileCheck
+from rehearse.checks.scripts import ScriptCheck
 from rehearse.checks.freshness import FreshnessCheck
 from rehearse.checks.groups import GroupCheck
 from rehearse.checks.reachability import ReachabilityCheck
-from rehearse.config import Config, FixtureBook
+from rehearse.cli import main
+from rehearse.config import Config, ConfigError, FixtureBook, load_config
 from rehearse.directory import NoneDirectory, StubDirectory, build_directory
 from rehearse.engine import Clock
-from rehearse.models import Asset, Step
+from rehearse.models import Asset, Precondition, Step
 from tests.conftest import make_runbook
 
 TODAY = date(2026, 10, 21)
@@ -126,6 +129,115 @@ def test_missing_file_and_broken_link(tmp_path: Path):
     assert by_target["./gone.md"].status == "fail"
     assert by_target["https://wiki.harborpine.example/restore"].status == "fail"
     assert by_target["https://wiki.harborpine.example/restore"].dimension == "reachability"
+
+
+def test_content_root_confines_files_and_follows_safe_symlinks(tmp_path: Path):
+    root = tmp_path / "content"
+    runbooks = root / "runbooks"
+    assets = root / "assets"
+    runbooks.mkdir(parents=True)
+    assets.mkdir()
+    inside = assets / "inside.txt"
+    inside.write_text("inside\n", encoding="utf-8")
+    outside = tmp_path / "outside.txt"
+    outside.write_text("outside\n", encoding="utf-8")
+    (assets / "inside-link.txt").symlink_to(inside)
+    (assets / "outside-link.txt").symlink_to(outside)
+    book = make_runbook(
+        runbooks / "book.yaml",
+        steps=[
+            _step_with_assets(
+                [
+                    Asset("inside", "file", "../assets/inside.txt"),
+                    Asset("parent", "file", "../../outside.txt"),
+                    Asset("absolute", "file", str(outside)),
+                    Asset("outside-link", "file", "../assets/outside-link.txt"),
+                    Asset("inside-link", "file", "../assets/inside-link.txt"),
+                ]
+            )
+        ],
+    )
+
+    findings = FileCheck().run(book, _ctx(tmp_path, root=root.resolve()))
+    by_target = {item.target: item for item in findings}
+    assert by_target["../assets/inside.txt"].status == "pass"
+    assert by_target["../assets/inside-link.txt"].status == "pass"
+    for target in ("../../outside.txt", str(outside), "../assets/outside-link.txt"):
+        assert by_target[target].status == "fail"
+        assert by_target[target].evidence["resolved"] == str(outside.resolve())
+
+
+def test_content_root_confines_links_before_reading_destination(tmp_path: Path):
+    root = tmp_path / "content"
+    root.mkdir()
+    outside = tmp_path / "outside.md"
+    outside.write_text("outside\n", encoding="utf-8")
+    note = root / "note.md"
+    note.write_text(
+        '[outside](../outside.md) <a href="../outside.md">outside</a>\n',
+        encoding="utf-8",
+    )
+    book = make_runbook(
+        root / "book.yaml",
+        preconditions=[Precondition("proof", "Proof is present.", "../outside.md")],
+        steps=[_step_with_assets([Asset("note", "file", "note.md")])],
+    )
+
+    findings = FileCheck().run(book, _ctx(tmp_path, root=root.resolve()))
+    blocked = [item for item in findings if item.status == "fail"]
+    assert len([item for item in blocked if item.check == "link-exists"]) == 2
+    assert any(item.check == "file-exists" and item.target == "../outside.md" for item in blocked)
+    assert all(item.evidence["resolved"] == str(outside.resolve()) for item in blocked)
+
+
+def test_content_root_blocks_script_before_syntax_check(tmp_path: Path, monkeypatch):
+    root = tmp_path / "content"
+    root.mkdir()
+    outside = tmp_path / "outside.py"
+    outside.write_text("raise AssertionError('must not be read')\n", encoding="utf-8")
+    link = root / "script.py"
+    link.symlink_to(outside)
+    book = make_runbook(root / "book.yaml")
+    book.steps[0].assets.append(Asset("script", "script", "script.py", language="python"))
+
+    def should_not_run(*_args, **_kwargs):
+        raise AssertionError("syntax check should not run outside the content root")
+
+    monkeypatch.setattr("rehearse.checks.scripts.check_script", should_not_run)
+    finding = ScriptCheck().run(book, _ctx(tmp_path, root=root.resolve()))[0]
+    assert finding.status == "fail"
+    assert finding.evidence["resolved"] == str(outside.resolve())
+
+
+def test_config_root_is_relative_to_config_and_canonical(tmp_path: Path):
+    real = tmp_path / "real"
+    real.mkdir()
+    alias = tmp_path / "alias"
+    alias.symlink_to(real, target_is_directory=True)
+    config_path = tmp_path / "rehearse.yaml"
+    config_path.write_text("mode: offline\nroot: alias\n", encoding="utf-8")
+    assert load_config(config_path).root == real.resolve()
+
+    config_path.write_text("root: missing\n", encoding="utf-8")
+    try:
+        load_config(config_path)
+    except ConfigError as exc:
+        assert "root is not a directory" in str(exc)
+    else:
+        raise AssertionError("missing content root was accepted")
+
+
+def test_cli_root_uses_working_directory_and_overrides_config(tmp_path: Path, monkeypatch, capsys):
+    config_root = tmp_path / "configured"
+    config_root.mkdir()
+    config_path = tmp_path / "rehearse.yaml"
+    config_path.write_text("mode: offline\nroot: configured\n", encoding="utf-8")
+    demo = Path(__file__).resolve().parents[1] / "examples" / "demo" / "runbooks"
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["check", str(demo), "--config", str(config_path), "--root", ".", "--stdout", "json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["contentRoot"] == str(tmp_path.resolve())
 
 
 def test_url_asset_is_not_scored_twice(tmp_path: Path):
@@ -317,4 +429,3 @@ def test_escalation_eligibility_uses_each_contacts_phone(tmp_path: Path):
         escalation = [item for item in findings if item.check == "escalation"]
         assert len(escalation) == 1
         assert escalation[0].status == expected
-

@@ -70,6 +70,7 @@ A live config:
 
 ```yaml
 mode: live
+root: .
 failUnder: 75
 dueSoonDays: 14
 timeouts:
@@ -84,6 +85,7 @@ directory:
 
 ```bash
 rehearse check runbooks --config rehearse.yaml --output rehearse-out --fail-under 75
+rehearse check runbooks --root . --offline
 rehearse tabletop runbooks/restore-archive-share.yaml --participant "Sam Ortega"
 rehearse tabletop runbooks/restore-archive-share.yaml --answers exercise.yaml --output tabletop-out
 ```
@@ -134,7 +136,7 @@ All of them are non-destructive. v0.1 has no apply command and no remediation fl
 | Freshness | Compares `lastReviewed` with the review interval and the maximum age. |
 | Contacts | Checks email shape and, when a phone is present, a leading `+` and 8 to 15 digits. Spaces, dots, dashes, and parentheses are allowed. |
 | DNS / TCP / HTTP | Resolves the host, connects to the TCP port if one is set, and requests the URL. |
-| Files and links | Checks local paths relative to the runbook. Scans one level of Markdown and `href` links inside those files. |
+| Files and links | Checks local paths relative to the runbook. With `root` or `--root`, rejects resolved paths outside that directory. Scans one level of Markdown and `href` links inside those files. |
 | Script syntax | `python` via `compile()`, `bash` via `bash -n`, PowerShell via `pwsh` and `Parser.ParseFile`. |
 | Groups | Looks up a group only when a directory provider is configured. |
 | Completeness | A high or critical procedure needs a precondition. Each step needs an owner. |
@@ -144,6 +146,8 @@ Skip findings are listed and left out of the score. A missing `pwsh` or `bash` i
 Live HTTP sends `HEAD` with a one-byte `GET` when the server answers 405 or 501. TLS certificates are verified. Redirects stay on plain `http` and `https` URLs. `HTTP_PROXY` is ignored unless `http.useEnvironmentProxy` is true. URLs with embedded credentials are rejected at load time.
 
 Offline mode answers only from `offline.hosts` and `offline.urls`. A target with no fixture fails. It does not fall through to the network. `clock.today` is honored only in offline mode, so a pinned date cannot hide a stale review in a live run. `rehearse demo` forces offline mode.
+
+`root` is optional. A relative config value is based on the config file's directory; a relative `--root` is based on the working directory and overrides the config. The root is a boundary, not a search path: file, evidence, local link, and script targets keep their existing bases. Both root and target are resolved canonically, so `..`, absolute paths, and symlinks cannot escape it. Without either option, local paths remain unrestricted and the report says so.
 
 Directory providers:
 
@@ -219,7 +223,7 @@ The compendium is under revision. Map the identifiers to the edition you were as
 
 ## Required permissions
 
-- Read the runbook files and the local files and scripts they name. v0.1 does not confine those paths to a root, and it follows symlinks. Run it on procedures you trust, as a user that should be allowed to read those paths.
+- Read the runbook files and the local files and scripts they name. Set `root` or `--root` to reject references whose canonical path leaves that directory, including outward symlinks. Without it, paths remain unrestricted. Run the tool as a user that should be allowed to read the referenced paths.
 - Live mode resolves DNS and opens a TCP connection and an HTTP request to every host and URL in the files. That is an active probe. It does not log in and it does not send an application payload beyond the HTTP request line and headers. Get permission before you point it at a network.
 - LDAP needs a bind account that can search the group base. The password comes from `REHEARSE_LDAP_PASSWORD`. The tool binds read-only and does not write the password into the report.
 - Microsoft Graph needs a token that can read group objects, in `REHEARSE_GRAPH_TOKEN`. v0.1 sends `GET` only. The token is redacted from error text.
@@ -237,7 +241,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Short version: English in code and docs,
 Not yet implemented:
 
 - Third-party check plugins via entry points. The check classes in `rehearse.checks` are the extension point inside the tree.
-- Authenticated HTTP, IPv6 host targets, and a content root that refuses paths outside a directory.
+- Authenticated HTTP and IPv6 host targets.
 - A CI job that runs LDAP against a local directory container. The client is covered with a stand-in connection.
 - Windows PowerShell 5.1. The parser we call is `pwsh` 7.
 - Phone delivery checks and mailbox checks. Format is as far as v0.1 goes.

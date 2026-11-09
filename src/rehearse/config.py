@@ -40,6 +40,7 @@ class FixtureBook:
 @dataclass
 class Config:
     mode: str = "live"
+    root: Path | None = None
     fail_under: float | None = None
     due_soon_days: int = 14
     dns_timeout: float = 3.0
@@ -57,6 +58,7 @@ class Config:
 
 _TOP_KEYS = {
     "mode",
+    "root",
     "failUnder",
     "dueSoonDays",
     "clock",
@@ -85,12 +87,12 @@ def load_config(path: Path | None) -> Config:
         document = {}
     if not isinstance(document, dict):
         raise ConfigError(f"{path}: config must be a mapping")
-    config = _parse_config(document, str(path))
+    config = _parse_config(document, str(path), path.parent)
     config.source = str(path)
     return config
 
 
-def _parse_config(document: dict, origin: str) -> Config:
+def _parse_config(document: dict, origin: str, base: Path | None = None) -> Config:
     unknown = sorted(set(document) - _TOP_KEYS)
     if unknown:
         raise ConfigError(f"{origin}: unknown config keys: {', '.join(unknown)}")
@@ -100,6 +102,8 @@ def _parse_config(document: dict, origin: str) -> Config:
         raise ConfigError(f"{origin}: mode must be live or offline")
 
     config = Config(mode=mode)
+    if "root" in document:
+        config.root = resolve_root(document["root"], base or Path.cwd(), origin)
     if "failUnder" in document:
         config.fail_under = _number(document["failUnder"], "failUnder", 0, 100, origin)
     if "dueSoonDays" in document:
@@ -144,6 +148,21 @@ def _parse_config(document: dict, origin: str) -> Config:
     if offline:
         _apply_offline(config, offline, origin)
     return config
+
+
+def resolve_root(value, base: Path, origin: str) -> Path:
+    if not isinstance(value, (str, Path)) or not str(value).strip():
+        raise ConfigError(f"{origin}: root must be a non-empty directory path")
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = base / path
+    try:
+        resolved = path.resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ConfigError(f"{origin}: root could not be resolved: {path}") from exc
+    if not resolved.is_dir():
+        raise ConfigError(f"{origin}: root is not a directory: {resolved}")
+    return resolved
 
 
 def _apply_directory(config: Config, directory: dict, origin: str) -> None:

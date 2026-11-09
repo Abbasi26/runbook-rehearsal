@@ -14,6 +14,12 @@ _HREF = re.compile(r"""href\s*=\s*["']([^"']+)["']""", re.IGNORECASE)
 _MAX_SCAN = 1_048_576
 
 
+class OutsideRootError(ValueError):
+    def __init__(self, resolved: Path):
+        self.resolved = resolved
+        super().__init__(f"resolved path is outside content root: {resolved}")
+
+
 class FileCheck(Check):
     name = "file-exists"
     dimension = "references"
@@ -55,7 +61,21 @@ class FileCheck(Check):
                     asset=asset_id,
                 )
             ]
-        path = resolve_reference(runbook.path, target)
+        try:
+            path = resolve_reference(runbook.path, target, ctx.config.root)
+        except OutsideRootError as exc:
+            return [
+                make_finding(
+                    check="file-exists",
+                    dimension=self.dimension,
+                    status="fail",
+                    runbook_id=runbook.id,
+                    target=target,
+                    message="resolved path is outside content root",
+                    asset=asset_id,
+                    resolved=str(exc.resolved),
+                )
+            ]
         if not path.exists():
             return [
                 make_finding(
@@ -194,7 +214,22 @@ class FileCheck(Check):
                     )
                 )
                 continue
-            destination = (path.parent / link.split("#", 1)[0]).resolve()
+            try:
+                destination = resolve_reference(path, link.split("#", 1)[0], ctx.config.root)
+            except OutsideRootError as exc:
+                findings.append(
+                    make_finding(
+                        check="link-exists",
+                        dimension=self.dimension,
+                        status="fail",
+                        runbook_id=runbook.id,
+                        target=link,
+                        message="resolved path is outside content root",
+                        source=target,
+                        resolved=str(exc.resolved),
+                    )
+                )
+                continue
             if destination.is_file():
                 status, message = "pass", "linked file exists"
             else:
@@ -213,11 +248,14 @@ class FileCheck(Check):
         return findings
 
 
-def resolve_reference(runbook_path: Path, target: str) -> Path:
+def resolve_reference(runbook_path: Path, target: str, root: Path | None = None) -> Path:
     raw = Path(target)
-    if raw.is_absolute():
+    if raw.is_absolute() and root is None:
         return raw
-    return (runbook_path.parent / raw).resolve()
+    resolved = raw.resolve() if raw.is_absolute() else (runbook_path.parent / raw).resolve()
+    if root is not None and not resolved.is_relative_to(root):
+        raise OutsideRootError(resolved)
+    return resolved
 
 
 def _extract_links(text: str) -> list[str]:

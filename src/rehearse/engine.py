@@ -98,6 +98,8 @@ class Report:
     generated_at: str
     mode: str
     probes_sent: bool
+    content_root: str | None
+    content_root_note: str
     directory_provider: str
     directory_note: str
     clock_date: str
@@ -181,6 +183,12 @@ def check_paths(
         generated_at=datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
         mode=config.mode,
         probes_sent=config.mode == "live",
+        content_root=str(config.root) if config.root else None,
+        content_root_note=(
+            "Local file and script references are confined to this canonical root."
+            if config.root
+            else "No content root is configured; local file and script references are unrestricted."
+        ),
         directory_provider=config.directory_provider,
         directory_note=_directory_note(config.directory_provider),
         clock_date=clock.today().isoformat(),
