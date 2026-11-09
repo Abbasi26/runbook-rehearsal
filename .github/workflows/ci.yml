@@ -72,3 +72,5 @@ jobs:
           if ($script:ParseExit -eq 0) {
             throw 'PowerShell 5.1 parse should fail for Test-FinanceShare.ps1 (missing closing brace)'
           }
+          # 5.1 leaves LASTEXITCODE from the last native powershell.exe; clear it so the step is green.
+          exit 0
