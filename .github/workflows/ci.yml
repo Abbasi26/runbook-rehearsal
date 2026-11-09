@@ -38,3 +38,39 @@ jobs:
           rehearse diff rehearse-demo-out/report.json rehearse-check-out/report.json --format markdown
           rehearse init smoke-test-runbook --output smoke/smoke-test-runbook.yaml
           rehearse validate smoke/smoke-test-runbook.yaml
+
+  powershell-syntax:
+    name: PowerShell 5.1 syntax
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Parse shipped PowerShell scripts
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          function Invoke-Parse([string]$Rel) {
+            Write-Host "Parsing $Rel"
+            $out = & powershell -NoProfile -File src/rehearse/data/Test-ScriptSyntax.ps1 -Path $Rel
+            $script:ParseExit = $LASTEXITCODE
+            if ($null -ne $out) { Write-Host $out }
+          }
+          $ok = @(
+            'src/rehearse/data/Test-ScriptSyntax.ps1',
+            'examples/demo/scripts/Write-RehearsalNote.ps1'
+          )
+          foreach ($rel in $ok) {
+            Invoke-Parse $rel
+            if ($script:ParseExit -ne 0) {
+              throw "PowerShell 5.1 parse should succeed for $rel (exit $($script:ParseExit))"
+            }
+          }
+          # Intentionally unclosed block: the demo finance procedure is expected to fail parse.
+          Invoke-Parse 'examples/demo/scripts/Test-FinanceShare.ps1'
+          if ($script:ParseExit -eq 0) {
+            throw 'PowerShell 5.1 parse should fail for Test-FinanceShare.ps1 (missing closing brace)'
+          }
+          # 5.1 leaves LASTEXITCODE from the last native powershell.exe; clear it so the step is green.
+          exit 0
