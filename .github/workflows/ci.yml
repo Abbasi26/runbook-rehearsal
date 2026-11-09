@@ -38,3 +38,28 @@ jobs:
           rehearse diff rehearse-demo-out/report.json rehearse-check-out/report.json --format markdown
           rehearse init smoke-test-runbook --output smoke/smoke-test-runbook.yaml
           rehearse validate smoke/smoke-test-runbook.yaml
+
+  powershell-syntax:
+    name: PowerShell 5.1 syntax
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Parse shipped PowerShell scripts
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $scripts = @(
+            'src/rehearse/data/Test-ScriptSyntax.ps1',
+            'examples/demo/scripts/Test-FinanceShare.ps1',
+            'examples/demo/scripts/Write-RehearsalNote.ps1'
+          )
+          foreach ($rel in $scripts) {
+            Write-Host "Parsing $rel"
+            & powershell -NoProfile -File src/rehearse/data/Test-ScriptSyntax.ps1 -Path $rel
+            if ($LASTEXITCODE -ne 0) {
+              throw "PowerShell 5.1 parse failed for $rel (exit $LASTEXITCODE)"
+            }
+          }
