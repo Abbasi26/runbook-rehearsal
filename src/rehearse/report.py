@@ -35,9 +35,11 @@ def render_text(report: Report) -> str:
         lines.append("Mode: offline fixtures. No DNS, TCP, or HTTP probes were sent.")
     lines.append(f"Clock: {report.clock_date}" + (" (pinned)" if report.clock_pinned else ""))
     lines.append(f"Directory: {report.directory_provider}")
+    lines.append(f"Content root: {report.content_root or 'none'}")
     if report.clock_note:
         lines.append(report.clock_note)
     lines.append(report.directory_note)
+    lines.append(report.content_root_note)
     lines.append("")
     header = ("Runbook", "Score", "Band", "Pass", "Warn", "Fail", "Skip")
     rows = [header]
@@ -114,6 +116,7 @@ def render_markdown(report: Report) -> str:
     if report.clock_note:
         lines.append(f"- {report.clock_note}")
     lines.append(f"- Directory provider: `{report.directory_provider}`. {report.directory_note}")
+    lines.append(f"- Content root: `{report.content_root or 'none'}`. {report.content_root_note}")
     lines.append("")
     score = "n/a" if report.overall.value is None else f"{report.overall.value:.1f}"
     lines.append("## Overall")
@@ -259,6 +262,7 @@ def render_html(report: Report) -> str:
             items.append(f"<li><code>{_esc(error['path'])}</code><ul>{messages}</ul></li>")
         error_block = f"<section><h2>Files that did not load</h2><ul>{''.join(items)}</ul></section>"
     clock_note = f"<p>{_esc(report.clock_note)}</p>" if report.clock_note else ""
+    content_root = _esc(report.content_root or "none")
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -399,6 +403,7 @@ code {{
 <p>Review clock {clock}.</p>
 {clock_note}
 <p>Directory provider <code>{_esc(report.directory_provider)}</code>. {_esc(report.directory_note)}</p>
+<p>Content root <code>{content_root}</code>. {_esc(report.content_root_note)}</p>
 </header>
 <h2>Runbooks</h2>
 <table>
@@ -431,6 +436,8 @@ def render_json(report: Report) -> str:
         "generatedAt": report.generated_at,
         "mode": report.mode,
         "probesSent": report.probes_sent,
+        "contentRoot": report.content_root,
+        "contentRootNote": report.content_root_note,
         "directoryProvider": report.directory_provider,
         "directoryNote": report.directory_note,
         "clockDate": report.clock_date,

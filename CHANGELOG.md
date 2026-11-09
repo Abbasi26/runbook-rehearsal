@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `rehearse check --root DIR` and config `root` optionally confine canonically resolved local file, evidence, link, and script paths. Outward traversal, absolute paths, and symlinks fail before protected scripts are read; reports state whether a root was active.
+
 ## 0.2.0 — 2026-10-28
 
 - `rehearse diff BEFORE AFTER` compares two `report.json` files: overall and per-runbook score deltas, band changes, new failures, fixed findings, other status changes, and added or removed runbooks. `--format text|markdown|json`. `--fail-on-regression` exits 1 on a new failure or a band drop. Freshness findings are matched per runbook, so a new review date counts as a fix and not as a new finding.

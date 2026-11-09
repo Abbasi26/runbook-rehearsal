@@ -11,7 +11,7 @@ from rehearse.checks.base import Check
 from rehearse.config import Config
 from rehearse.engine import Clock, check_paths
 from rehearse.models import make_finding
-from rehearse.report import render_html, render_json, render_markdown, write_reports
+from rehearse.report import render_html, render_json, render_markdown, render_text, write_reports
 from rehearse.runbook_load import discover_runbooks
 from rehearse.scoring import WEIGHTS, score_findings
 
@@ -116,12 +116,25 @@ def test_report_files_include_disclaimer_and_weights(tmp_path: Path):
     assert "certification" in payload["disclaimer"].lower()
     assert payload["weights"] == WEIGHTS
     assert payload["probesSent"] is False
+    assert payload["contentRoot"] is None
+    assert "unrestricted" in payload["contentRootNote"]
+    assert "Content root: none" in render_text(report)
+    assert "Content root: `none`" in markdown
+    assert "Content root <code>none</code>" in html
     assert "A.5.24" in markdown
     assert "DER.4" in html
     assert "Article 21" in html
     assert render_html(report).startswith("<!DOCTYPE html>")
     assert "linux-disk-incident" in render_markdown(report)
     assert render_json(report).strip().endswith("}")
+
+    root = Path(__file__).resolve().parents[1]
+    rooted = check_paths(discover_runbooks(source), Config(mode="offline", root=root))
+    rooted_payload = json.loads(render_json(rooted))
+    assert rooted_payload["contentRoot"] == str(root)
+    assert str(root) in render_text(rooted)
+    assert str(root) in render_markdown(rooted)
+    assert str(root) in render_html(rooted)
 
 
 def test_live_http_and_tcp_ignore_fixtures():
