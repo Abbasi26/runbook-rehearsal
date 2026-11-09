@@ -51,15 +51,23 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $scripts = @(
+          function Invoke-Parse([string]$Rel) {
+            Write-Host "Parsing $Rel"
+            & powershell -NoProfile -File src/rehearse/data/Test-ScriptSyntax.ps1 -Path $Rel
+            return $LASTEXITCODE
+          }
+          $ok = @(
             'src/rehearse/data/Test-ScriptSyntax.ps1',
-            'examples/demo/scripts/Test-FinanceShare.ps1',
             'examples/demo/scripts/Write-RehearsalNote.ps1'
           )
-          foreach ($rel in $scripts) {
-            Write-Host "Parsing $rel"
-            & powershell -NoProfile -File src/rehearse/data/Test-ScriptSyntax.ps1 -Path $rel
-            if ($LASTEXITCODE -ne 0) {
-              throw "PowerShell 5.1 parse failed for $rel (exit $LASTEXITCODE)"
+          foreach ($rel in $ok) {
+            $code = Invoke-Parse $rel
+            if ($code -ne 0) {
+              throw "PowerShell 5.1 parse should succeed for $rel (exit $code)"
             }
+          }
+          # Intentionally unclosed block: the demo finance procedure is expected to fail parse.
+          $code = Invoke-Parse 'examples/demo/scripts/Test-FinanceShare.ps1'
+          if ($code -eq 0) {
+            throw 'PowerShell 5.1 parse should fail for Test-FinanceShare.ps1 (missing closing brace)'
           }
