@@ -113,8 +113,42 @@ def test_check_with_baseline_writes_diff_and_gates(demo_report, tmp_path, capsys
         "--output", str(out), "--baseline", str(demo_report), "--fail-on-regression",
     ])
     assert code == 0
-    assert (out / "diff.md").read_text(encoding="utf-8").startswith("## Runbook rehearsal: changes")
+    diff_text = (out / "diff.md").read_text(encoding="utf-8")
+    assert diff_text.startswith("## Runbook rehearsal: changes")
+    html = (out / "report.html").read_text(encoding="utf-8")
+    assert 'id="baseline-comparison"' in html
+    assert "Baseline comparison" in html
+    assert "Overall" in html
+    assert "linux-disk-incident" in html
+    assert "No regression." in html
+    assert "<pre class=\"diff\">" in html
+    md = (out / "report.md").read_text(encoding="utf-8")
+    assert "## Baseline comparison" in md
+    assert "No regression." in md
     assert "Compared with" in capsys.readouterr().out
+
+    worse = load_report(demo_report)
+    healthy = _runbook(worse, "linux-disk-incident")
+    dns = next(item for item in healthy["findings"] if item["check"] == "dns")
+    dns["status"] = "fail"
+    healthy["score"] = 70.0
+    healthy["band"] = "drifting"
+    fixed_book = _runbook(worse, "restore-finance-share")
+    fixed = next(item for item in fixed_book["findings"] if item["status"] == "fail" and item["check"] != "freshness")
+    fixed["status"] = "pass"
+    worse_path = tmp_path / "worse.json"
+    worse_path.write_text(json.dumps(worse), encoding="utf-8")
+    out2 = tmp_path / "out2"
+    code = main([
+        "check", str(DEMO_RUNBOOKS), "--config", str(DEMO_CONFIG),
+        "--output", str(out2), "--baseline", str(worse_path), "--fail-on-regression",
+    ])
+    assert code == 1
+    diff2 = (out2 / "diff.md").read_text(encoding="utf-8")
+    assert "New failures" in diff2 and "Fixed" in diff2 and "drifting" in diff2 and "maintained" in diff2
+    html2 = (out2 / "report.html").read_text(encoding="utf-8")
+    assert "New failures" in html2 and "Fixed" in html2 and "drifting → maintained" in html2
+
     better = load_report(demo_report)
     for runbook in better["runbooks"]:
         for finding in runbook["findings"]:

@@ -117,7 +117,7 @@ rehearse diff last-week/report.json rehearse-out/report.json --format markdown >
 rehearse check runbooks --config rehearse.yaml --output rehearse-out --baseline last-week/report.json --fail-on-regression
 ```
 
-The diff lists score and band changes per runbook, findings that newly fail, findings that were fixed, and runbooks that were added or removed. A freshness finding is matched per runbook, so a new `lastReviewed` date shows up as fixed. `--fail-on-regression` exits 1 only when something got worse, which lets a team adopt the tool on old procedures and still stop new rot. With `--output`, `check --baseline` also writes `diff.md`. `examples/github-actions/rehearse-pull-request.yml` runs the base branch and the pull request offline and puts that Markdown in the job summary.
+The diff lists score and band changes per runbook, findings that newly fail, findings that were fixed, and runbooks that were added or removed. A freshness finding is matched per runbook, so a new `lastReviewed` date shows up as fixed. `--fail-on-regression` exits 1 only when something got worse, which lets a team adopt the tool on old procedures and still stop new rot. With `--output`, `check --baseline` also writes `diff.md` and includes the same comparison in `report.html` and `report.md`. `examples/github-actions/rehearse-pull-request.yml` runs the base branch and the pull request offline and puts that Markdown in the job summary.
 
 ### What the document holds
 
