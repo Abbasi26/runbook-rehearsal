@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Dependencies: runtime, dev and build requirements in `pyproject.toml` are pinned to exact versions (`==`). CI installs from the hash-pinned `requirements-ci.txt` (`pip install --require-hashes`), then the project itself with `--no-deps`. Prompted by the malicious `agent-framework` 1.26.1/1.26.2 releases on PyPI ([MAL-2026-20101](https://osv.dev/vulnerability/MAL-2026-20101)); none of these projects depend on it.
+
 ## 0.2.0 — 2026-10-28
 
 - `rehearse diff BEFORE AFTER` compares two `report.json` files: overall and per-runbook score deltas, band changes, new failures, fixed findings, other status changes, and added or removed runbooks. `--format text|markdown|json`. `--fail-on-regression` exits 1 on a new failure or a band drop. Freshness findings are matched per runbook, so a new review date counts as a fix and not as a new finding.
