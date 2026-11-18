@@ -417,6 +417,3 @@ def test_tabletop_preserves_valid_durations(block, expected):
     assert record.timing_source == (
         "unspecified" if expected is None else "participant"
     )
-
-# Skipped: implementation and test execution in this read-only review; broader answer validation.
-# Risk: previously accepted invalid durations will now fail with CLI exit code 2.

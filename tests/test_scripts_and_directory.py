@@ -215,6 +215,3 @@ def test_python_read_errors_preserve_script_findings(tmp_path: Path, monkeypatch
         assert findings[1].message == "Python script could not be read"
         assert findings[1].evidence["details"] == []
         assert not marker.exists()
-
-# Not checked: full pytest suite or offline demo; python was unavailable.
-# Risk: retaining all script findings can change affected maturity scores.

@@ -104,6 +104,3 @@ def test_tabletop_preserves_prompt_entry_validation(entry):
     assert str(exc.value) == (
         "step declare-incident prompts need prompt and response"
     )
-
-# Skipped: implementation and test execution in this read-only review.
-# Risk: malformed prompts containers now fail with CLI exit code 2.
