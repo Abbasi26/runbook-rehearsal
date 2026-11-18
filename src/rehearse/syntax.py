@@ -124,6 +124,3 @@ def _check_powershell(path: Path) -> ScriptResult:
     ]
     summary = details[0] if details else "PowerShell syntax error"
     return ScriptResult("fail", f"PowerShell syntax error: {summary}", details[:8])
-
-# Skipped: encoding expansion, retries, filesystem confinement, subprocess error handling.
-# Risk: tests were not run because python was unavailable; affected runs may receive different scores.
