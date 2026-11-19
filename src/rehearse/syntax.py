@@ -15,6 +15,7 @@ EXTENSIONS = {
     ".sh": "bash",
     ".bash": "bash",
     ".py": "python",
+    ".js": "javascript",
 }
 
 
@@ -37,6 +38,8 @@ def check_script(path: Path, language: str | None) -> ScriptResult:
         return _check_bash(path)
     if chosen == "powershell":
         return _check_powershell(path)
+    if chosen == "javascript":
+        return _check_javascript(path)
     return ScriptResult("warn", f"no syntax checker for language {chosen}")
 
 
@@ -77,6 +80,29 @@ def _check_bash(path: Path) -> ScriptResult:
     detail = (completed.stderr or completed.stdout).strip().replace(str(path), path.name)
     first = detail.splitlines()[0] if detail else f"bash -n exited {completed.returncode}"
     return ScriptResult("fail", f"bash syntax error: {first}", [first])
+
+
+def _check_javascript(path: Path) -> ScriptResult:
+    node = shutil.which("node")
+    if not node:
+        return ScriptResult("warn", "node is not on PATH; JavaScript syntax was not checked")
+    try:
+        completed = subprocess.run(
+            [node, "--check", str(path)],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        return ScriptResult("fail", "node --check timed out")
+    if completed.returncode == 0:
+        return ScriptResult("pass", "node --check accepted the file; it was not executed")
+    detail = (completed.stderr or completed.stdout).strip().replace(str(path), path.name)
+    first = detail.splitlines()[0] if detail else f"node --check exited {completed.returncode}"
+    return ScriptResult("fail", f"JavaScript syntax error: {first}", [first])
 
 
 def _check_powershell(path: Path) -> ScriptResult:
