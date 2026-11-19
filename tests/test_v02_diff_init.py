@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from rehearse.cli import main
-from rehearse.diff import DiffError, diff_reports, load_report, render_diff_markdown
+from rehearse.diff import DiffError, diff_reports, load_report, render_diff_markdown, render_diff_text
 from rehearse.runbook_load import load_runbook
 from rehearse.scaffold import ScaffoldError, render_scaffold
 
@@ -104,6 +104,36 @@ def test_diff_cli_formats_and_exit_codes(demo_report, tmp_path, capsys):
     assert main(["diff", str(bogus), str(demo_report)]) == 2
     with pytest.raises(DiffError):
         load_report(tmp_path / "missing.json")
+
+
+def test_only_failures_hides_score_and_fixed(demo_report, tmp_path, capsys):
+    before = load_report(demo_report)
+    after = copy.deepcopy(before)
+    finding = next(item for item in _runbook(after, "linux-disk-incident")["findings"] if item["check"] == "tcp")
+    finding["status"] = "fail"
+    finding["message"] = "connection refused"
+    regressed = tmp_path / "after.json"
+    regressed.write_text(json.dumps(after), encoding="utf-8")
+    assert main(["diff", str(demo_report), str(regressed), "--only-failures"]) == 0
+    text = capsys.readouterr().out
+    assert "Overall" not in text
+    assert "Fixed" not in text
+    assert "Other changes" not in text
+    assert "linux-disk-incident tcp" in text
+    assert "connection refused" in text
+    assert main(["diff", str(demo_report), str(regressed), "--only-failures", "--fail-on-regression"]) == 1
+    capsys.readouterr()
+    assert main(["diff", str(demo_report), str(demo_report), "--only-failures", "--fail-on-regression"]) == 0
+    assert capsys.readouterr().out == ""
+    assert main(["diff", str(demo_report), str(regressed), "--only-failures", "--format", "json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["regressed"] is True and data["newFailures"][0]["check"] == "tcp"
+    assert main(["diff", str(demo_report), str(regressed), "--only-failures", "--format", "markdown"]) == 0
+    assert "## Runbook rehearsal: changes" in capsys.readouterr().out
+    assert render_diff_text(diff_reports(before, after), only_failures=True) == (
+        "linux-disk-incident tcp log01.ops.harborpine.example:22: pass -> fail (connection refused)\n"
+    )
+    assert render_diff_text(diff_reports(before, before), only_failures=True) == ""
 
 
 def test_check_with_baseline_writes_diff_and_gates(demo_report, tmp_path, capsys):

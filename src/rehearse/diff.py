@@ -193,7 +193,16 @@ def _delta(value: float | None) -> str:
     return f"{value:+.1f}"
 
 
-def render_diff_text(diff: ReportDiff) -> str:
+def render_diff_text(diff: ReportDiff, only_failures: bool = False) -> str:
+    if only_failures:
+        lines = []
+        for change in diff.new_failures:
+            lines.append(
+                f"{change.runbook_id} {change.check} {change.target}: "
+                f"{change.before or 'absent'} -> {change.after or 'absent'}"
+                + (f" ({change.message})" if change.message and change.after else "")
+            )
+        return "\n".join(lines) + ("\n" if lines else "")
     overall = diff.as_dict()["overall"]
     lines = [f"Overall {_score(diff.overall_before)} -> {_score(diff.overall_after)} ({_delta(overall['delta'])})"]
     for item in diff.runbooks:

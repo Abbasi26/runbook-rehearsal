@@ -65,6 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     diff.add_argument("after", help="newer report.json")
     diff.add_argument("--format", choices=("text", "markdown", "json"), default="text", dest="fmt")
     diff.add_argument("--fail-on-regression", action="store_true", help="exit 1 on a new failure or a band drop")
+    diff.add_argument("--only-failures", action="store_true", help="only print new failures (text output)")
     diff.set_defaults(func=cmd_diff)
 
     init = sub.add_parser("init", help="write a new runbook skeleton that passes validate")
@@ -172,7 +173,7 @@ def cmd_diff(args) -> int:
     elif args.fmt == "markdown":
         sys.stdout.write(render_diff_markdown(comparison))
     else:
-        sys.stdout.write(render_diff_text(comparison))
+        sys.stdout.write(render_diff_text(comparison, only_failures=args.only_failures))
     if args.fail_on_regression and comparison.regressed:
         return 1
     return 0
