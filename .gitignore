@@ -10,3 +10,4 @@ rehearse-tabletop-out/
 .coverage
 htmlcov/
 *.pyc
+.tmp/

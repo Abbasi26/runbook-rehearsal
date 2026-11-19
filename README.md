@@ -1,3 +1,17 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/logo-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/assets/logo-light.svg">
+    <img src="docs/assets/logo-light.svg" alt="runbook-rehearsal" height="64">
+  </picture>
+</p>
+
+<p align="center">Catches dead links, missing files and broken scripts in runbooks.</p>
+
+<p align="center">
+  <img src="docs/assets/readme-hero.png" width="800" alt="Terminal output of rehearse demo: three fictional runbooks scored Maintained, Drifting and Stale, followed by the failed checks such as overdue reviews, HTTP 404 links, missing files and script syntax errors.">
+</p>
+
 # RunbookRehearsal
 
 [![CI](https://github.com/Abbasi26/runbook-rehearsal/actions/workflows/ci.yml/badge.svg)](https://github.com/Abbasi26/runbook-rehearsal/actions/workflows/ci.yml)
@@ -5,6 +19,14 @@
 Dry-run checks that show when a written incident or operations runbook has gone stale.
 
 People still keep the 03:00 procedure in a YAML or wiki page: who to call, which host to look at, which script to read, which share to restore. Those references rot quietly. RunbookRehearsal reads the YAML, checks the references, and writes a maturity report you can attach to a NIS2, ISO/IEC 27001, or BSI IT-Grundschutz conversation. The score is evidence of freshness and reference health. A certification decision stays with the operator and the auditor.
+
+## Demo video
+
+[![Demo video for runbook-rehearsal](docs/media/brag.jpg)](docs/media/brag.mp4)
+
+RunbookRehearsal checks review age, references, reachability, script syntax, directory groups, and completeness without executing the procedure. It writes local HTML, Markdown, and JSON reports. (Click the image to play the video.)
+
+Music: Sascha Ende ([ende.app](https://ende.app)), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 
 ## The problem
 
@@ -103,7 +125,7 @@ rehearse diff last-week/report.json rehearse-out/report.json --format markdown >
 rehearse check runbooks --config rehearse.yaml --output rehearse-out --baseline last-week/report.json --fail-on-regression
 ```
 
-The diff lists score and band changes per runbook, findings that newly fail, findings that were fixed, and runbooks that were added or removed. A freshness finding is matched per runbook, so a new `lastReviewed` date shows up as fixed. `--fail-on-regression` exits 1 only when something got worse, which lets a team adopt the tool on old procedures and still stop new rot. With `--output`, `check --baseline` also writes `diff.md`. `examples/github-actions/rehearse-pull-request.yml` runs the base branch and the pull request offline and puts that Markdown in the job summary.
+The diff lists score and band changes per runbook, findings that newly fail, findings that were fixed, and runbooks that were added or removed. A freshness finding is matched per runbook, so a new `lastReviewed` date shows up as fixed. `--fail-on-regression` exits 1 only when something got worse, which lets a team adopt the tool on old procedures and still stop new rot. With `--output`, `check --baseline` also writes `diff.md` and includes the same comparison in `report.html` and `report.md`. `examples/github-actions/rehearse-pull-request.yml` runs the base branch and the pull request offline and puts that Markdown in the job summary.
 
 ### What the document holds
 

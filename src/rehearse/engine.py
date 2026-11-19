@@ -109,6 +109,7 @@ class Report:
     overall: Score = field(default_factory=lambda: overall_score([]))
     weights: dict = field(default_factory=lambda: dict(WEIGHTS))
     framework_notes: tuple = FRAMEWORK_NOTES
+    diff_markdown: str | None = None
 
 
 def check_paths(
