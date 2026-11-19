@@ -67,6 +67,30 @@ def test_powershell_parser_or_honest_skip(tmp_path: Path):
         assert not marker.exists()
 
 
+def test_javascript_check_does_not_execute(tmp_path: Path):
+    import shutil
+
+    script = tmp_path / "side_effect.js"
+    marker = tmp_path / "marker.txt"
+    script.write_text(f"require('fs').writeFileSync({str(marker)!r}, 'x')\n", encoding="utf-8")
+    result = check_script(script, "javascript")
+    if shutil.which("node"):
+        assert result.status == "pass"
+        assert "not executed" in result.message
+        assert not marker.exists()
+
+        broken = tmp_path / "broken.js"
+        broken.write_text("function broken(:\n  return (\n", encoding="utf-8")
+        failed = check_script(broken, "javascript")
+        assert failed.status == "fail"
+        assert failed.details
+    else:
+        assert result.status == "warn"
+        assert "node" in result.message
+        assert "not executed" not in result.message
+        assert not marker.exists()
+
+
 def test_ldap_filter_and_graph_url():
     assert escape_filter("a*(b)") == r"a\2a\28b\29"
     base, filt, scope = build_ldap_search("Ops (Team)", "DC=harborpine,DC=example")
@@ -215,6 +239,3 @@ def test_python_read_errors_preserve_script_findings(tmp_path: Path, monkeypatch
         assert findings[1].message == "Python script could not be read"
         assert findings[1].evidence["details"] == []
         assert not marker.exists()
-
-# Not checked: full pytest suite or offline demo; python was unavailable.
-# Risk: retaining all script findings can change affected maturity scores.

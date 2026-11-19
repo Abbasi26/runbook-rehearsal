@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from rehearse.cli import main
-from rehearse.diff import DiffError, diff_reports, load_report, render_diff_markdown
+from rehearse.diff import DiffError, diff_reports, load_report, render_diff_markdown, render_diff_text
 from rehearse.runbook_load import load_runbook
 from rehearse.scaffold import ScaffoldError, render_scaffold
 
@@ -106,6 +106,36 @@ def test_diff_cli_formats_and_exit_codes(demo_report, tmp_path, capsys):
         load_report(tmp_path / "missing.json")
 
 
+def test_only_failures_hides_score_and_fixed(demo_report, tmp_path, capsys):
+    before = load_report(demo_report)
+    after = copy.deepcopy(before)
+    finding = next(item for item in _runbook(after, "linux-disk-incident")["findings"] if item["check"] == "tcp")
+    finding["status"] = "fail"
+    finding["message"] = "connection refused"
+    regressed = tmp_path / "after.json"
+    regressed.write_text(json.dumps(after), encoding="utf-8")
+    assert main(["diff", str(demo_report), str(regressed), "--only-failures"]) == 0
+    text = capsys.readouterr().out
+    assert "Overall" not in text
+    assert "Fixed" not in text
+    assert "Other changes" not in text
+    assert "linux-disk-incident tcp" in text
+    assert "connection refused" in text
+    assert main(["diff", str(demo_report), str(regressed), "--only-failures", "--fail-on-regression"]) == 1
+    capsys.readouterr()
+    assert main(["diff", str(demo_report), str(demo_report), "--only-failures", "--fail-on-regression"]) == 0
+    assert capsys.readouterr().out == ""
+    assert main(["diff", str(demo_report), str(regressed), "--only-failures", "--format", "json"]) == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["regressed"] is True and data["newFailures"][0]["check"] == "tcp"
+    assert main(["diff", str(demo_report), str(regressed), "--only-failures", "--format", "markdown"]) == 0
+    assert "## Runbook rehearsal: changes" in capsys.readouterr().out
+    assert render_diff_text(diff_reports(before, after), only_failures=True) == (
+        "linux-disk-incident tcp log01.ops.harborpine.example:22: pass -> fail (connection refused)\n"
+    )
+    assert render_diff_text(diff_reports(before, before), only_failures=True) == ""
+
+
 def test_check_with_baseline_writes_diff_and_gates(demo_report, tmp_path, capsys):
     out = tmp_path / "out"
     code = main([
@@ -113,8 +143,42 @@ def test_check_with_baseline_writes_diff_and_gates(demo_report, tmp_path, capsys
         "--output", str(out), "--baseline", str(demo_report), "--fail-on-regression",
     ])
     assert code == 0
-    assert (out / "diff.md").read_text(encoding="utf-8").startswith("## Runbook rehearsal: changes")
+    diff_text = (out / "diff.md").read_text(encoding="utf-8")
+    assert diff_text.startswith("## Runbook rehearsal: changes")
+    html = (out / "report.html").read_text(encoding="utf-8")
+    assert 'id="baseline-comparison"' in html
+    assert "Baseline comparison" in html
+    assert "Overall" in html
+    assert "linux-disk-incident" in html
+    assert "No regression." in html
+    assert "<pre class=\"diff\">" in html
+    md = (out / "report.md").read_text(encoding="utf-8")
+    assert "## Baseline comparison" in md
+    assert "No regression." in md
     assert "Compared with" in capsys.readouterr().out
+
+    worse = load_report(demo_report)
+    healthy = _runbook(worse, "linux-disk-incident")
+    dns = next(item for item in healthy["findings"] if item["check"] == "dns")
+    dns["status"] = "fail"
+    healthy["score"] = 70.0
+    healthy["band"] = "drifting"
+    fixed_book = _runbook(worse, "restore-finance-share")
+    fixed = next(item for item in fixed_book["findings"] if item["status"] == "fail" and item["check"] != "freshness")
+    fixed["status"] = "pass"
+    worse_path = tmp_path / "worse.json"
+    worse_path.write_text(json.dumps(worse), encoding="utf-8")
+    out2 = tmp_path / "out2"
+    code = main([
+        "check", str(DEMO_RUNBOOKS), "--config", str(DEMO_CONFIG),
+        "--output", str(out2), "--baseline", str(worse_path), "--fail-on-regression",
+    ])
+    assert code == 1
+    diff2 = (out2 / "diff.md").read_text(encoding="utf-8")
+    assert "New failures" in diff2 and "Fixed" in diff2 and "drifting" in diff2 and "maintained" in diff2
+    html2 = (out2 / "report.html").read_text(encoding="utf-8")
+    assert "New failures" in html2 and "Fixed" in html2 and "drifting → maintained" in html2
+
     better = load_report(demo_report)
     for runbook in better["runbooks"]:
         for finding in runbook["findings"]:

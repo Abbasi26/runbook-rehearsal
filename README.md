@@ -20,6 +20,14 @@ Dry-run checks that show when a written incident or operations runbook has gone 
 
 People still keep the 03:00 procedure in a YAML or wiki page: who to call, which host to look at, which script to read, which share to restore. Those references rot quietly. RunbookRehearsal reads the YAML, checks the references, and writes a maturity report you can attach to a NIS2, ISO/IEC 27001, or BSI IT-Grundschutz conversation. The score is evidence of freshness and reference health. A certification decision stays with the operator and the auditor.
 
+## Demo video
+
+[![Demo video for runbook-rehearsal](docs/media/brag.jpg)](docs/media/brag.mp4)
+
+RunbookRehearsal checks review age, references, reachability, script syntax, directory groups, and completeness without executing the procedure. It writes local HTML, Markdown, and JSON reports. (Click the image to play the video.)
+
+Music: Sascha Ende ([ende.app](https://ende.app)), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
 ## The problem
 
 Harbor and Pine is a fictional library cooperative. Its finance-share procedure was last reviewed on 1 June 2025. It still tells the on-call person to use `pager-desk` and the number `12345`, to open TCP 445 on `fs01.ops.harborpine.example`, to follow a restore note that is no longer in the folder, and to read `invoke-share.sh`, which does not parse. The status URL returns 404. The Active Directory group in the text is not in the directory list.
@@ -119,7 +127,7 @@ rehearse diff last-week/report.json rehearse-out/report.json --format markdown >
 rehearse check runbooks --config rehearse.yaml --output rehearse-out --baseline last-week/report.json --fail-on-regression
 ```
 
-The diff lists score and band changes per runbook, findings that newly fail, findings that were fixed, and runbooks that were added or removed. A freshness finding is matched per runbook, so a new `lastReviewed` date shows up as fixed. `--fail-on-regression` exits 1 only when something got worse, which lets a team adopt the tool on old procedures and still stop new rot. With `--output`, `check --baseline` also writes `diff.md`. `examples/github-actions/rehearse-pull-request.yml` runs the base branch and the pull request offline and puts that Markdown in the job summary.
+The diff lists score and band changes per runbook, findings that newly fail, findings that were fixed, and runbooks that were added or removed. A freshness finding is matched per runbook, so a new `lastReviewed` date shows up as fixed. `--fail-on-regression` exits 1 only when something got worse, which lets a team adopt the tool on old procedures and still stop new rot. With `--output`, `check --baseline` also writes `diff.md` and includes the same comparison in `report.html` and `report.md`. `examples/github-actions/rehearse-pull-request.yml` runs the base branch and the pull request offline and puts that Markdown in the job summary.
 
 ### What the document holds
 
