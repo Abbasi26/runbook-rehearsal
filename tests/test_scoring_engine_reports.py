@@ -119,9 +119,28 @@ def test_report_files_include_disclaimer_and_weights(tmp_path: Path):
     assert "A.5.24" in markdown
     assert "DER.4" in html
     assert "Article 21" in html
+    assert 'id="baseline-comparison"' not in html
+    assert "Baseline comparison" not in markdown
     assert render_html(report).startswith("<!DOCTYPE html>")
     assert "linux-disk-incident" in render_markdown(report)
     assert render_json(report).strip().endswith("}")
+
+
+def test_report_diff_section_and_json_stability():
+    source = Path(__file__).resolve().parents[1] / "examples" / "demo" / "runbooks" / "linux-disk-incident.yaml"
+    report = check_paths(discover_runbooks(source), Config(mode="offline", clock_today=date(2026, 10, 21)))
+    before = render_json(report)
+    report.diff_markdown = "Overall: 100.0 -> 99.0\n<script>alert(1)</script> & \"quoted\""
+    html = render_html(report)
+    assert 'id="baseline-comparison"' in html
+    assert "Baseline comparison" in html
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+    assert "&amp; &quot;quoted&quot;" in html
+    assert "<script>alert(1)</script>" not in html
+    md = render_markdown(report)
+    assert "## Baseline comparison" in md
+    assert "<script>alert(1)</script>" in md
+    assert render_json(report) == before
 
 
 def test_live_http_and_tcp_ignore_fixtures():

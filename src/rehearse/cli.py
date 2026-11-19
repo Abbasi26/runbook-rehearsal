@@ -65,6 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     diff.add_argument("after", help="newer report.json")
     diff.add_argument("--format", choices=("text", "markdown", "json"), default="text", dest="fmt")
     diff.add_argument("--fail-on-regression", action="store_true", help="exit 1 on a new failure or a band drop")
+    diff.add_argument("--only-failures", action="store_true", help="only print new failures (text output)")
     diff.set_defaults(func=cmd_diff)
 
     init = sub.add_parser("init", help="write a new runbook skeleton that passes validate")
@@ -144,20 +145,24 @@ def cmd_check(args) -> int:
         print(f"no runbooks found in {args.path}", file=sys.stderr)
         return 2
     report = check_paths(paths, config)
+    comparison = None
+    diff_markdown = None
+    if baseline is not None:
+        comparison = diff_reports(baseline, json.loads(render_json(report)))
+        diff_markdown = render_diff_markdown(comparison)
+        report.diff_markdown = diff_markdown
     if args.stdout == "json":
         sys.stdout.write(render_json(report))
     else:
         sys.stdout.write(render_text(report))
-    comparison = None
-    if baseline is not None:
-        comparison = diff_reports(baseline, json.loads(render_json(report)))
+    if comparison is not None:
         stream = sys.stderr if args.stdout == "json" else sys.stdout
         stream.write("\nCompared with " + args.baseline + "\n" + render_diff_text(comparison))
     if args.output:
         written = write_reports(report, Path(args.output))
-        if comparison is not None:
+        if diff_markdown is not None:
             written["diff"] = Path(args.output) / "diff.md"
-            written["diff"].write_text(render_diff_markdown(comparison), encoding="utf-8")
+            written["diff"].write_text(diff_markdown, encoding="utf-8")
         for path in written.values():
             print(path, file=sys.stderr if args.stdout == "json" else sys.stdout)
     code = _exit_code(report, args, config)
@@ -173,7 +178,7 @@ def cmd_diff(args) -> int:
     elif args.fmt == "markdown":
         sys.stdout.write(render_diff_markdown(comparison))
     else:
-        sys.stdout.write(render_diff_text(comparison))
+        sys.stdout.write(render_diff_text(comparison, only_failures=args.only_failures))
     if args.fail_on_regression and comparison.regressed:
         return 1
     return 0

@@ -177,6 +177,11 @@ def render_markdown(report: Report) -> str:
             f"| {_md(note['id'])} | {_md(note['shows'])} | {_md(note['limits'])} |"
         )
     lines.append("")
+    if report.diff_markdown:
+        lines.append("## Baseline comparison")
+        lines.append("")
+        lines.append(report.diff_markdown.rstrip("\n"))
+        lines.append("")
     if report.errors:
         lines.append("## Files that did not load")
         lines.append("")
@@ -258,6 +263,14 @@ def render_html(report: Report) -> str:
             messages = "".join(f"<li>{_esc(message)}</li>" for message in error["messages"])
             items.append(f"<li><code>{_esc(error['path'])}</code><ul>{messages}</ul></li>")
         error_block = f"<section><h2>Files that did not load</h2><ul>{''.join(items)}</ul></section>"
+    diff_section = ""
+    if report.diff_markdown:
+        diff_section = (
+            "<section id=\"baseline-comparison\">"
+            "<h2>Baseline comparison</h2>"
+            f"<pre class=\"diff\">{_esc(report.diff_markdown)}</pre>"
+            "</section>"
+        )
     clock_note = f"<p>{_esc(report.clock_note)}</p>" if report.clock_note else ""
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -310,6 +323,16 @@ h2 {{ font-size: 1.35rem; margin: 0 0 8px; }}
   border-left: 4px solid var(--green);
   padding: 12px 14px;
   margin: 16px 0;
+}}
+pre.diff {{
+  background: #fff;
+  border: 1px solid var(--rule);
+  padding: 12px 14px;
+  margin: 8px 0 24px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86rem;
+  white-space: pre;
+  overflow-x: auto;
 }}
 .scoreblock {{
   display: flex;
@@ -408,6 +431,7 @@ code {{
 </tbody>
 </table>
 {''.join(sections)}
+{diff_section}
 <section>
 <h2>Reading this as evidence</h2>
 <table>
