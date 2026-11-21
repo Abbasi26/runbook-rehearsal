@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import pytest
 import yaml
 
 from rehearse.locate import repo_schema_path, schema_path
@@ -26,6 +27,50 @@ def test_demo_and_example_validate():
         assert book.id
     example = load_runbook(EXAMPLE)
     assert example.id == "restore-archive-share"
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "2001:db8:0:1:1:1:1:10",
+        "2001:db8::10",
+        "::",
+        "::1",
+        "2001:DB8::ABCD",
+        "::ffff:192.0.2.128",
+    ],
+)
+def test_accepts_ipv6_host_targets(tmp_path: Path, target: str):
+    source = (DEMO / "linux-disk-incident.yaml").read_text(encoding="utf-8")
+    source = source.replace("target: log01.ops.harborpine.example", f'target: "{target}"', 1)
+    path = tmp_path / "ipv6.yaml"
+    path.write_text(source, encoding="utf-8")
+
+    book = load_runbook(path)
+
+    assert book.steps[0].assets[0].target == target
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        "2001:db8::xyz",
+        "1:2:3:4:5:6:7:8:9",
+        "2001:db8::1::2",
+        "[2001:db8::10]",
+        "fe80::1%eth0",
+    ],
+)
+def test_rejects_invalid_ipv6_host_targets(tmp_path: Path, target: str):
+    source = (DEMO / "linux-disk-incident.yaml").read_text(encoding="utf-8")
+    source = source.replace("target: log01.ops.harborpine.example", f'target: "{target}"', 1)
+    path = tmp_path / "bad-ipv6.yaml"
+    path.write_text(source, encoding="utf-8")
+
+    with pytest.raises(LoadError) as error:
+        load_runbook(path)
+
+    assert any("target" in message for message in error.value.messages)
 
 
 def test_rejects_executable_document(tmp_path: Path):
