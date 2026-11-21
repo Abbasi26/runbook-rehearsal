@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `rehearse init --from <runbook.yaml>` copies owner and contacts from an existing runbook into the new skeleton. Missing or invalid source files produce a clear error and exit non-zero; nothing is written.
 - `rehearse check --root DIR` and config `root` optionally confine canonically resolved local file, evidence, link, and script paths. Outward traversal, absolute paths, and symlinks fail before protected scripts are read; reports state whether a root was active.
 - `rehearse check` now runs a `placeholders` finding that flags `(replace)`, `example.org`, and `555-010` values left in a runbook by `rehearse init`. It is a warning per contact or asset, so a copied skeleton that only got its title edited now shows up in the report instead of silently scoring as healthy.
 - CI: the setuptools build backend is in the hash-pinned `requirements-ci.txt`, and the project is installed with `--no-build-isolation`, so the build no longer downloads an unhashed setuptools.
