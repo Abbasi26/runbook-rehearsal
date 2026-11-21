@@ -20,7 +20,7 @@ RunbookRehearsal checks written procedures. It does not run them, and it stays t
 
 ## Good first issues
 
-1. **Placeholder check**: a new completeness finding when a contact still contains `(replace)` or an `example.org` address. Look at `src/rehearse/checks/completeness.py` and add a test in `tests/test_checks.py`.
+    1. ~~**Placeholder check**~~ — done in 0.2.1. `rehearse check` now flags `(replace)`, `example.org`, and `555-010` leftovers from `rehearse init` as a `placeholders` finding.
 2. **`rehearse diff --only-failures`**: hide the score table and print only new failures.
 3. **`init --from` an existing runbook**: copy contacts and owner from another file.
 4. **Markdown diff in the HTML report**: show the `diff.md` content as a section when `--baseline` is set.

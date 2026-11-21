@@ -3,6 +3,7 @@
 ## Unreleased
 
 - `rehearse init --from <runbook.yaml>` copies owner and contacts from an existing runbook into the new skeleton. Missing or invalid source files produce a clear error and exit non-zero; nothing is written.
+- `rehearse check` now runs a `placeholders` finding that flags `(replace)`, `example.org`, and `555-010` values left in a runbook by `rehearse init`. It is a warning per contact or asset, so a copied skeleton that only got its title edited now shows up in the report instead of silently scoring as healthy.
 - CI: the setuptools build backend is in the hash-pinned `requirements-ci.txt`, and the project is installed with `--no-build-isolation`, so the build no longer downloads an unhashed setuptools.
 - Dependabot: weekly Python updates (uv ecosystem) for `pyproject.toml`, `requirements-ci.in` and the hash-pinned `requirements-ci.txt`. `requirements-ci.txt` is now compiled from `requirements-ci.in` so Dependabot can recompile it with hashes.
 - Dependencies: runtime, dev and build requirements in `pyproject.toml` are pinned to exact versions (`==`). CI installs from the hash-pinned `requirements-ci.txt` (`pip install --require-hashes`), then the project itself with `--no-deps`. Prompted by the malicious `agent-framework` 1.26.1/1.26.2 releases on PyPI ([MAL-2026-20101](https://osv.dev/vulnerability/MAL-2026-20101)); none of these projects depend on it.

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+
+import yaml
 
 from rehearse.models import Contact
 
@@ -161,10 +164,9 @@ def render_scaffold(
 
 
 def _yaml_scalar(value: str) -> str:
-    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 _.-]*", value):
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 _.-]*", value) and yaml.safe_load(value) == value:
         return value
-    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-    return f'"{escaped}"'
+    return json.dumps(value, ensure_ascii=False)
 
 
 def write_scaffold(path: Path, text: str, *, force: bool = False) -> Path:

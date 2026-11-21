@@ -3,6 +3,8 @@
 from datetime import date
 from pathlib import Path
 
+import pytest
+
 from rehearse.checks.base import CheckContext
 from rehearse.checks.completeness import CompletenessCheck
 from rehearse.checks.contacts import ContactCheck, normalize_phone, valid_email
@@ -251,6 +253,59 @@ def test_offline_host_and_url_fixtures(tmp_path: Path):
     assert "offline fixture" in (unknown.error or "")
 
 
+@pytest.mark.parametrize(
+    ("fixture", "expected"),
+    [
+        ({"addresses": ["2001:db8::10"], "ports": {"443": "open"}}, ["pass", "pass"]),
+        ({"addresses": ["2001:db8::10"], "ports": {"443": "closed"}}, ["pass", "fail"]),
+        ({"error": "fixture NXDOMAIN"}, ["fail", "skip"]),
+    ],
+)
+def test_ipv6_offline_dns_and_tcp(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fixture: dict,
+    expected: list[str],
+):
+    from rehearse.network import FixtureNetwork
+
+    def live_call(*_args, **_kwargs):
+        raise AssertionError("offline check attempted a live network call")
+
+    monkeypatch.setattr("socket.getaddrinfo", live_call)
+    monkeypatch.setattr("socket.create_connection", live_call)
+    host = "2001:db8::10"
+    book = make_runbook(
+        tmp_path / "ipv6.yaml",
+        steps=[_step_with_assets([Asset("service", "host", host, port=443)])],
+    )
+    ctx = _ctx(tmp_path)
+    ctx.network = FixtureNetwork(FixtureBook(hosts={host: fixture}))
+
+    findings = ReachabilityCheck().run(book, ctx)
+
+    assert [finding.status for finding in findings] == expected
+    assert findings[0].target == host
+    assert findings[1].target == "[2001:db8::10]:443"
+
+
+def test_ipv6_host_without_port_only_checks_dns(tmp_path: Path):
+    from rehearse.network import FixtureNetwork
+
+    host = "2001:DB8::10"
+    book = make_runbook(
+        tmp_path / "ipv6-no-port.yaml",
+        steps=[_step_with_assets([Asset("service", "host", host)])],
+    )
+    ctx = _ctx(tmp_path)
+    ctx.network = FixtureNetwork(FixtureBook(hosts={host.casefold(): {"addresses": [host]}}))
+
+    findings = ReachabilityCheck().run(book, ctx)
+
+    assert [finding.check for finding in findings] == ["dns"]
+    assert findings[0].evidence["addresses"] == [host]
+
+
 class _FixtureNet:
     def __init__(self, urls: dict[str, int]):
         self.urls = urls
@@ -293,6 +348,47 @@ def test_phone_requires_ascii_digits():
         assert normalize_phone(value) is None
 
 
+def test_placeholder_check_flags_init_leftovers(tmp_path: Path):
+    from rehearse.checks.placeholders import PlaceholderCheck
+    from rehearse.models import Contact
+
+    book = make_runbook(
+        tmp_path / "skeleton.yaml",
+        contacts=[
+            Contact("Incident commander (replace)", "Commander", "commander@example.org", "+1-555-010-0000", 1),
+        ],
+        steps=[
+            _step_with_assets([Asset("status-page", "url", "https://status.example.org/app")])
+        ],
+    )
+    findings = PlaceholderCheck().run(book, _ctx(tmp_path))
+    commander = [item for item in findings if item.target == "Incident commander (replace)"]
+    assert len(commander) == 3
+    assert all(item.status == "warn" for item in commander)
+    messages = " ".join(item.message for item in commander)
+    assert "(replace)" in messages
+    assert "example.org" in messages
+    assert any("phone" in item.message for item in commander)
+    assert any(item.target == "status-page" and item.status == "warn" for item in findings)
+
+
+def test_placeholder_check_passes_on_real_values(tmp_path: Path):
+    from rehearse.checks.placeholders import PlaceholderCheck
+    from rehearse.models import Contact
+
+    book = make_runbook(
+        tmp_path / "real.yaml",
+        contacts=[
+            Contact("Priya Nandakumar", "Commander", "priya.nandakumar@harborpine.example", "+1-555-014-2281", 1),
+        ],
+        steps=[_step_with_assets([Asset("fs01", "host", "fs01.ops.harborpine.example", port=445)])],
+    )
+    findings = PlaceholderCheck().run(book, _ctx(tmp_path))
+    assert len(findings) == 1
+    assert findings[0].status == "pass"
+    assert "placeholder" in findings[0].message
+
+
 def test_escalation_eligibility_uses_each_contacts_phone(tmp_path: Path):
     from rehearse.models import Contact
 
@@ -317,4 +413,3 @@ def test_escalation_eligibility_uses_each_contacts_phone(tmp_path: Path):
         escalation = [item for item in findings if item.check == "escalation"]
         assert len(escalation) == 1
         assert escalation[0].status == expected
-

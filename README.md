@@ -155,6 +155,7 @@ All of them are non-destructive. v0.1 has no apply command and no remediation fl
 | Script syntax | `python` via `compile()`, `bash` via `bash -n`, PowerShell via `pwsh` and `Parser.ParseFile`. |
 | Groups | Looks up a group only when a directory provider is configured. |
 | Completeness | A high or critical procedure needs a precondition. Each step needs an owner. |
+| Placeholders | Flags `(replace)`, `example.org`, and `555-010` values left in a runbook by `rehearse init`. |
 
 Skip findings are listed and left out of the score. A missing `pwsh` or `bash` is a warning, not a pass.
 
@@ -223,6 +224,16 @@ The record is separate from the maturity score. It is what people said, not a te
 ### Scheduled check
 
 `.github/workflows/ci.yml` runs the test suite, `rehearse demo`, and a diff smoke test on Python 3.11, 3.12, and 3.13. `examples/github-actions/rehearse-schedule.yml` is a weekly workflow you copy into the repository that holds your procedures. v0.1 is not on PyPI. The example installs the local checkout, or the git URL you set in the `RUNBOOKREHEARSAL_SPEC` repository variable. Map `REHEARSE_LDAP_PASSWORD` and `REHEARSE_GRAPH_TOKEN` from secrets only if the config actually selects `ldap` or `graph`. An empty secret is ignored.
+
+### Runbook-Prüfung im Pull Request
+
+Die Vorlage [`examples/github-actions/rehearse-pull-request.yml`](examples/github-actions/rehearse-pull-request.yml) prüft Änderungen an Runbooks offline und stellt den Unterschied zum Ziel-Branch im Pull-Request bereit.
+
+1. **Voraussetzungen prüfen:** Das Repository muss `runbooks/` und `rehearse.yaml` enthalten. Die Konfiguration muss für die Prüfung passende `offline.hosts`- und `offline.urls`-Fixtures enthalten. Für den Workflow werden Git-Historie und Python 3.12 benötigt; die CI-Laufzeit stellt Python bereit.
+2. **Prüfung einrichten:** Kopiere die Vorlage als `.github/workflows/rehearse-pr.yml` in das Repository, das die Runbooks enthält. Der Workflow läuft bei Pull Requests mit Änderungen unter `runbooks/**` oder an `rehearse.yaml`. Standardmäßig installiert er den aktuellen Checkout. Für ein anderes vertrauenswürdiges Paket setze die Repository-Variable `RUNBOOKREHEARSAL_SPEC` auf eine Git-URL oder einen lokalen Pfad.
+3. **Baseline und Änderung vergleichen:** Der erste Check wird auf `origin/<base-branch>` ausgeführt und schreibt `report.json` nach `../baseline-out`. Danach prüft `rehearse check runbooks --config rehearse.yaml --offline --output rehearse-out --baseline ../baseline-out/report.json --fail-on-regression` den Pull Request. Gibt es noch keine Baseline, läuft stattdessen ein Check ohne Vergleich.
+4. **Diff-Bericht lesen:** `rehearse-out/diff.md` wird in die Job-Zusammenfassung übernommen; alle Berichte liegen zusätzlich im Artefakt `runbook-rehearsal-pr`. Achte auf neu fehlgeschlagene Findings, verschlechterte Scores und einen Band-Abstieg. Mit `--fail-on-regression` schlägt der Job fehl, wenn ein neuer Fehler auftritt oder ein Runbook einen Band verliert; unveränderte alte Fehler sind kein neuer Rückschritt.
+5. **Grenzen beachten:** `--offline` beantwortet Netzwerkprüfungen ausschließlich aus den Fixtures und sendet keine DNS-, TCP- oder HTTP-Anfragen. Ein Ziel ohne Fixture kann deshalb fehlschlagen. Der Bericht belegt nur die Prüfung der geschriebenen Runbooks und ihrer Referenzen; er beweist weder echte Erreichbarkeit noch eine funktionierende Wiederherstellung oder die Ausführung eines Scripts. Für reale Probes darf `--offline` nur nach einer bewussten Freigabe durch die zuständigen Netzwerkverantwortlichen entfernt werden.
 
 ### Reading the report as evidence
 
