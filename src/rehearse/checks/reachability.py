@@ -21,6 +21,7 @@ class ReachabilityCheck(Check):
 
     def _host(self, runbook: Runbook, asset, ctx: CheckContext) -> list:
         dns = ctx.network.resolve(asset.target)
+        tcp_target = _tcp_target(asset.target, asset.port) if asset.port is not None else None
         findings = [
             make_finding(
                 check="dns",
@@ -46,7 +47,7 @@ class ReachabilityCheck(Check):
                     dimension=self.dimension,
                     status="skip",
                     runbook_id=runbook.id,
-                    target=f"{asset.target}:{asset.port}",
+                    target=tcp_target,
                     message="TCP was not checked because DNS failed",
                     asset=asset.id,
                 )
@@ -59,7 +60,7 @@ class ReachabilityCheck(Check):
                 dimension=self.dimension,
                 status="pass" if tcp.ok else "fail",
                 runbook_id=runbook.id,
-                target=f"{asset.target}:{asset.port}",
+                target=tcp_target,
                 message=(
                     f"TCP {asset.port} accepted a connection"
                     if tcp.ok
@@ -86,3 +87,7 @@ class ReachabilityCheck(Check):
             asset=asset_id,
             httpStatus=result.status,
         )
+
+
+def _tcp_target(host: str, port: int) -> str:
+    return f"[{host}]:{port}" if ":" in host else f"{host}:{port}"

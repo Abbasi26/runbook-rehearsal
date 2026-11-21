@@ -3,6 +3,8 @@
 from datetime import date
 from pathlib import Path
 
+import pytest
+
 from rehearse.checks.base import CheckContext
 from rehearse.checks.completeness import CompletenessCheck
 from rehearse.checks.contacts import ContactCheck, normalize_phone, valid_email
@@ -251,6 +253,59 @@ def test_offline_host_and_url_fixtures(tmp_path: Path):
     assert "offline fixture" in (unknown.error or "")
 
 
+@pytest.mark.parametrize(
+    ("fixture", "expected"),
+    [
+        ({"addresses": ["2001:db8::10"], "ports": {"443": "open"}}, ["pass", "pass"]),
+        ({"addresses": ["2001:db8::10"], "ports": {"443": "closed"}}, ["pass", "fail"]),
+        ({"error": "fixture NXDOMAIN"}, ["fail", "skip"]),
+    ],
+)
+def test_ipv6_offline_dns_and_tcp(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fixture: dict,
+    expected: list[str],
+):
+    from rehearse.network import FixtureNetwork
+
+    def live_call(*_args, **_kwargs):
+        raise AssertionError("offline check attempted a live network call")
+
+    monkeypatch.setattr("socket.getaddrinfo", live_call)
+    monkeypatch.setattr("socket.create_connection", live_call)
+    host = "2001:db8::10"
+    book = make_runbook(
+        tmp_path / "ipv6.yaml",
+        steps=[_step_with_assets([Asset("service", "host", host, port=443)])],
+    )
+    ctx = _ctx(tmp_path)
+    ctx.network = FixtureNetwork(FixtureBook(hosts={host: fixture}))
+
+    findings = ReachabilityCheck().run(book, ctx)
+
+    assert [finding.status for finding in findings] == expected
+    assert findings[0].target == host
+    assert findings[1].target == "[2001:db8::10]:443"
+
+
+def test_ipv6_host_without_port_only_checks_dns(tmp_path: Path):
+    from rehearse.network import FixtureNetwork
+
+    host = "2001:DB8::10"
+    book = make_runbook(
+        tmp_path / "ipv6-no-port.yaml",
+        steps=[_step_with_assets([Asset("service", "host", host)])],
+    )
+    ctx = _ctx(tmp_path)
+    ctx.network = FixtureNetwork(FixtureBook(hosts={host.casefold(): {"addresses": [host]}}))
+
+    findings = ReachabilityCheck().run(book, ctx)
+
+    assert [finding.check for finding in findings] == ["dns"]
+    assert findings[0].evidence["addresses"] == [host]
+
+
 class _FixtureNet:
     def __init__(self, urls: dict[str, int]):
         self.urls = urls
@@ -317,4 +372,3 @@ def test_escalation_eligibility_uses_each_contacts_phone(tmp_path: Path):
         escalation = [item for item in findings if item.check == "escalation"]
         assert len(escalation) == 1
         assert escalation[0].status == expected
-

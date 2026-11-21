@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import re
 from datetime import date, datetime
+from ipaddress import AddressValueError, IPv6Address
 from pathlib import Path
 
 import yaml
@@ -230,8 +231,8 @@ def _asset_messages(step_index: int, asset_index: int, asset: dict) -> list[str]
     target = asset.get("target")
     messages: list[str] = []
     if kind == "host":
-        if not isinstance(target, str) or not HOST_RE.fullmatch(target) or len(target) > 253:
-            messages.append(f"{prefix}.target: host must be a hostname, localhost, or IPv4 address")
+        if not _valid_host_target(target):
+            messages.append(f"{prefix}.target: host must be a hostname, localhost, IPv4, or IPv6 address")
     elif kind == "url":
         if not isinstance(target, str) or not URL_RE.fullmatch(target):
             messages.append(f"{prefix}.target: url must start with http:// or https:// and contain no spaces")
@@ -246,6 +247,20 @@ def _asset_messages(step_index: int, asset_index: int, asset: dict) -> list[str]
     if asset.get("directory") is not None and kind != "group":
         messages.append(f"{prefix}.directory: directory is only valid on a group asset")
     return messages
+
+
+def _valid_host_target(target: object) -> bool:
+    if not isinstance(target, str):
+        return False
+    if len(target) <= 253 and HOST_RE.fullmatch(target):
+        return True
+    if "%" in target:
+        return False
+    try:
+        IPv6Address(target)
+    except AddressValueError:
+        return False
+    return True
 
 
 def _url_has_userinfo(target: str) -> bool:
