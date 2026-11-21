@@ -23,7 +23,7 @@ The stub provider matches a list in the config. A stub hit is not evidence that 
 
 ## Untrusted files
 
-v0.1 follows symlinks and does not confine referenced paths to a root. A runbook can name any local file, and a script check will parse that file. It will not execute it. Run the tool as a user who is allowed to read those paths, on files you trust. YAML anchors, aliases, and Python tags are rejected. Runbook files larger than 1 MiB are rejected.
+Local references are unrestricted by default. Set `root` in the config or pass `rehearse check --root DIR` to reject file, evidence, local link, and script targets whose canonical path leaves that directory. This also rejects outward symlinks and checks scripts before reading them. The check is not an atomic filesystem sandbox, so run the tool as a user who is allowed to read the referenced paths and use files you trust. YAML anchors, aliases, and Python tags are rejected. Runbook files larger than 1 MiB are rejected.
 
 ## Network position
 
