@@ -269,9 +269,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Short version: English in code and docs,
 Not yet implemented:
 
 - Third-party check plugins via entry points. The check classes in `rehearse.checks` are the extension point inside the tree.
-- Authenticated HTTP and IPv6 host targets.
+- Authenticated HTTP.
 - A CI job that runs LDAP against a local directory container. The client is covered with a stand-in connection.
-- Windows PowerShell 5.1. The parser we call is `pwsh` 7.
+- A Windows PowerShell 5.1 parser fallback when `pwsh` 7 is unavailable.
 - Phone delivery checks and mailbox checks. Format is as far as v0.1 goes.
 
 ## How this differs from existing tools
