@@ -222,6 +222,31 @@ def test_tabletop_refuses_a_non_interactive_terminal(monkeypatch):
         raise AssertionError("non-interactive tabletop should fail")
 
 
+def test_cli_tabletop_requires_answers_without_a_terminal(monkeypatch, capsys):
+    runbook_path = ROOT / "examples" / "demo" / "runbooks" / "linux-disk-incident.yaml"
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+
+    assert main(["tabletop", str(runbook_path)]) == 2
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.strip() == "tabletop needs a terminal or --answers FILE"
+    assert "Traceback" not in captured.out
+    assert "Traceback" not in captured.err
+
+
+def test_cli_tabletop_reports_a_missing_runbook(tmp_path, capsys):
+    runbook_path = tmp_path / "missing-runbook.yaml"
+
+    assert main(["tabletop", str(runbook_path)]) == 2
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err.strip() == f"runbook file not found: {runbook_path}"
+    assert "Traceback" not in captured.out
+    assert "Traceback" not in captured.err
+
+
 @pytest.mark.parametrize("section", ["steps", "preconditions"])
 @pytest.mark.parametrize("value", [False, 0, "", [], True, 1, "invalid", ["invalid"]])
 def test_tabletop_rejects_non_mapping_sections(section, value, tmp_path, capsys):
